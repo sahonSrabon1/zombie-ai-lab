@@ -979,10 +979,520 @@
                 opacity: 1;
             }
         }
+
+        .zc-minimal .top-header,
+        .zc-minimal .sidebar,
+        .zc-minimal .main-content,
+        .zc-minimal .notification {
+            display: none !important;
+        }
+
+        #zc-minimal-root {
+            display: none;
+        }
+
+        .zc-minimal #zc-minimal-root {
+            display: block;
+        }
     </style>
 </head>
 
-<body>
+<body class="zc-minimal">
+    <div id="zc-minimal-root" style="min-height: 100vh; background: #0b1220; color: #e6edf3;">
+        <div style="max-width: 1240px; margin: 0 auto; padding: 18px 18px 24px 18px;">
+            <div style="display:flex; align-items:center; justify-content:space-between; gap:12px;">
+                <div>
+                    <div style="font-size: 28px; font-weight: 900; letter-spacing: 0.5px; color:#37d06f;">
+                        ZombieCoder Live Dashboard
+                    </div>
+                    <div style="margin-top: 4px; font-size: 12px; color: rgba(230,237,243,0.65);">
+                        Real agents + session persistence (48h) + WS heartbeat auto-pong
+                    </div>
+                </div>
+                <div style="display:flex; gap:10px; flex-wrap:wrap; justify-content:flex-end;">
+                    <a id="zc-link-api" href="#" target="_blank" rel="noreferrer"
+                        style="text-decoration:none; padding:10px 12px; border-radius: 12px; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.10); color:#e6edf3; font-size: 12px; font-weight: 700;">API</a>
+                    <a id="zc-link-admin" href="/admin" target="_blank" rel="noreferrer"
+                        style="text-decoration:none; padding:10px 12px; border-radius: 12px; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.10); color:#e6edf3; font-size: 12px; font-weight: 700;">Admin</a>
+                    <a id="zc-link-chat" href="/chat" target="_blank" rel="noreferrer"
+                        style="text-decoration:none; padding:10px 12px; border-radius: 12px; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.10); color:#e6edf3; font-size: 12px; font-weight: 700;">Chat</a>
+                </div>
+            </div>
+
+            <div id="zc-min-warning" style="display:none; margin-top: 14px; padding: 12px 14px; border-radius: 14px; background: rgba(248,81,73,0.10); border: 1px solid rgba(248,81,73,0.30); color: rgba(230,237,243,0.92); font-size: 12px; font-weight: 700;">
+                This dashboard is opened via file://. Browser will block cross-origin fetch/WS. Open it from your server origin instead (e.g. http://127.0.0.1:3000/docs/index.html or https://mcp.zombiecoder.my.id/docs/index.html).
+            </div>
+
+            <div style="margin-top: 14px; background: rgba(0,0,0,0.25); border: 1px solid rgba(255,255,255,0.10); border-radius: 18px; padding: 14px;">
+                <div style="display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap;">
+                    <div style="font-size: 14px; font-weight: 900; letter-spacing: 0.12em; text-transform: uppercase; color: rgba(230,237,243,0.78);">
+                        Protocol / Integration Docs
+                    </div>
+                    <div style="font-size: 11px; color: rgba(230,237,243,0.60); font-weight: 800;">
+                        HTTP + WS + MCP Tool Execution
+                    </div>
+                </div>
+
+                <div style="margin-top: 10px; display:grid; grid-template-columns: 1fr 1fr; gap: 14px;">
+                    <div>
+                        <div style="font-size: 11px; font-weight: 900; letter-spacing: 0.18em; text-transform: uppercase; color: rgba(230,237,243,0.55);">HTTP Endpoints (Next.js)</div>
+                        <pre style="margin-top: 8px; padding: 12px; border-radius: 14px; background: rgba(0,0,0,0.28); border: 1px solid rgba(255,255,255,0.10); max-height: 320px; overflow:auto; font-size: 11px;">GET  {API_BASE}/api/editor/connections
+  - 48h window DB snapshot: editorClientConnection + bindings + wsLogs
+
+GET  {API_BASE}/api/stock/clients
+  - live snapshot fetched from STOCK_SERVER_BASE_URL (/clients)
+
+POST {API_BASE}/api/stock/events
+  - ingest events from WS server:
+    client_connected | client_ping | client_disconnected | ws_request_log | bind_chat_session
+
+POST {API_BASE}/api/chat/stream
+  - SSE stream: event: session|chunk|done|error
+  - agentId triggers persona + memory context prompt build
+
+POST {API_BASE}/api/mcp/execute
+  - execute a registered tool (DB-backed)
+  - optional auth: X-API-Key if tool.requiredAuth
+
+GET  {API_BASE}/api/mcp/tools
+GET  {API_BASE}/api/mcp/tools/{name}
+GET  {API_BASE}/api/mcp/logs
+GET  {API_BASE}/api/mcp/stats</pre>
+                    </div>
+                    <div>
+                        <div style="font-size: 11px; font-weight: 900; letter-spacing: 0.18em; text-transform: uppercase; color: rgba(230,237,243,0.55);">WebSocket (Stock Server :9998)</div>
+                        <pre style="margin-top: 8px; padding: 12px; border-radius: 14px; background: rgba(0,0,0,0.28); border: 1px solid rgba(255,255,255,0.10); max-height: 320px; overflow:auto; font-size: 11px;">Connect:
+  ws(s)://{HOST}/ws?XTransformPort=9998
+
+Client → Server (JSON):
+  {"type":"client.register","kind":"browser|editor","name":"..."}
+  {"type":"session.resume","sessionId":"<chatSessionId>"}
+  {"type":"agent.select","agentId":"<agentId>"}
+  {"type":"chat.start","agentId":"<agentId>","messages":[{"role":"user","content":"..."}],"stream":true}
+  {"type":"heartbeat.pong","timestamp":"..."}
+
+Server → Client (StandardEvent):
+  event: client.registered
+  event: session.resumed | session.update | session.cleared
+  event: heartbeat.ping    (client must reply heartbeat.pong)
+  event: clients.update    (payload.count + payload.clients[])
+  event: message.start | message.chunk | message.end
+  event: error
+
+Session truth check:
+  session.resume validates via {API_BASE}/api/sessions/{id} (DB-backed)
+  chat.start streams via {API_BASE}/api/chat/stream (SSE)</pre>
+                    </div>
+                </div>
+
+                <div style="margin-top: 14px; display:grid; grid-template-columns: 1fr 1fr; gap: 14px;">
+                    <div>
+                        <div style="font-size: 11px; font-weight: 900; letter-spacing: 0.18em; text-transform: uppercase; color: rgba(230,237,243,0.55);">cURL: verify real sessions + DB ingestion</div>
+                        <pre style="margin-top: 8px; padding: 12px; border-radius: 14px; background: rgba(0,0,0,0.28); border: 1px solid rgba(255,255,255,0.10); max-height: 260px; overflow:auto; font-size: 11px;">API_BASE=http://127.0.0.1:3000
+
+curl -sS "$API_BASE/api/editor/connections" | head
+curl -sS "$API_BASE/api/stock/clients" | head
+
+curl -sS -X POST "$API_BASE/api/stock/events" \
+  -H 'content-type: application/json' \
+  -d '{"type":"client_ping","clientId":"manual-test","sessionId":"manual-session","pingAt":"'"$(date -Iseconds)"'"}'
+
+curl -N -X POST "$API_BASE/api/chat/stream" \
+  -H 'content-type: application/json' \
+  -d '{"messages":[{"role":"user","content":"ping"}],"stream":true}'</pre>
+                    </div>
+                    <div>
+                        <div style="font-size: 11px; font-weight: 900; letter-spacing: 0.18em; text-transform: uppercase; color: rgba(230,237,243,0.55);">MCP: execute a tool (real executor + audit log)</div>
+                        <pre style="margin-top: 8px; padding: 12px; border-radius: 14px; background: rgba(0,0,0,0.28); border: 1px solid rgba(255,255,255,0.10); max-height: 260px; overflow:auto; font-size: 11px;">API_BASE=http://127.0.0.1:3000
+
+curl -sS "$API_BASE/api/mcp/tools" | head
+
+curl -sS -X POST "$API_BASE/api/mcp/execute" \
+  -H 'content-type: application/json' \
+  -d '{"toolName":"system_info","input":{"sections":["os","runtime"]}}'
+
+curl -sS -X POST "$API_BASE/api/mcp/execute" \
+  -H 'content-type: application/json' \
+  -d '{"toolName":"shell_execute","input":{"command":"uname -a","timeout":8000}}'
+
+curl -sS "$API_BASE/api/mcp/logs?limit=20" | head</pre>
+                    </div>
+                </div>
+
+                <div style="margin-top: 12px; font-size: 11px; color: rgba(230,237,243,0.62);">
+                    <div style="font-weight: 900; color: rgba(230,237,243,0.80);">Tool-use truth note</div>
+                    <div style="margin-top: 6px; line-height: 1.45;">
+                        This repo has a real MCP tool execution API (<span style="font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;">/api/mcp/execute</span>) and a stock-server MCP JSON-RPC surface (tools/list, tools/call).
+                        The LLM providers currently do not implement model-native tool-calling loops (OpenAI tool_calls / Gemini function calls).
+                        So: tools can be executed via explicit HTTP calls (editor/dashboard/automation), or via WS JSON-RPC to stock-server, but they are not automatically invoked by the model unless we implement a tool-calling controller.
+                    </div>
+                </div>
+            </div>
+
+            <div style="margin-top: 16px; display:grid; grid-template-columns: 1.2fr 0.8fr; gap: 14px;">
+                <div style="background: rgba(0,0,0,0.25); border: 1px solid rgba(255,255,255,0.10); border-radius: 18px; padding: 14px;">
+                    <div style="display:flex; align-items:center; justify-content:space-between; gap:12px;">
+                        <div style="font-size: 14px; font-weight: 900; letter-spacing: 0.12em; text-transform: uppercase; color: rgba(230,237,243,0.78);">
+                            Connection
+                        </div>
+                        <div id="zc-ws-pill" style="padding: 6px 10px; border-radius: 999px; font-size: 12px; font-weight: 800; background: rgba(248,81,73,0.14); border: 1px solid rgba(248,81,73,0.30); color: #f85149;">
+                            Disconnected
+                        </div>
+                    </div>
+
+                    <div style="margin-top: 12px; display:grid; grid-template-columns: 1fr; gap: 10px;">
+                        <div>
+                            <div style="font-size: 12px; font-weight: 800; color: rgba(230,237,243,0.65);">API Base</div>
+                            <input id="zc-min-api" type="text" value="http://127.0.0.1:3000" spellcheck="false"
+                                style="margin-top: 6px; width: 100%; padding: 10px 12px; border-radius: 12px; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.14); color:#e6edf3; outline:none;">
+                        </div>
+                        <div>
+                            <div style="font-size: 12px; font-weight: 800; color: rgba(230,237,243,0.65);">WS URL</div>
+                            <input id="zc-min-ws" type="text" value="" spellcheck="false"
+                                style="margin-top: 6px; width: 100%; padding: 10px 12px; border-radius: 12px; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.14); color:#e6edf3; outline:none;">
+                        </div>
+                        <div style="display:flex; gap:10px; flex-wrap:wrap;">
+                            <button id="zc-btn-connect" type="button"
+                                style="padding:10px 14px; border-radius: 12px; border: 1px solid rgba(63,185,80,0.35); background: rgba(63,185,80,0.14); color:#3fb950; font-weight: 900; cursor:pointer;">Connect</button>
+                            <button id="zc-btn-disconnect" type="button"
+                                style="padding:10px 14px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.16); background: rgba(255,255,255,0.06); color:#e6edf3; font-weight: 900; cursor:pointer;">Disconnect</button>
+                            <button id="zc-btn-refresh" type="button"
+                                style="padding:10px 14px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.16); background: rgba(255,255,255,0.06); color:#e6edf3; font-weight: 900; cursor:pointer;">Refresh</button>
+                            <button id="zc-btn-clear" type="button"
+                                style="padding:10px 14px; border-radius: 12px; border: 1px solid rgba(248,81,73,0.30); background: rgba(248,81,73,0.14); color:#f85149; font-weight: 900; cursor:pointer;">Clear (48h)</button>
+                        </div>
+                    </div>
+
+                    <div style="margin-top: 12px; display:grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                        <div style="background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); border-radius: 14px; padding: 12px;">
+                            <div style="font-size: 11px; font-weight: 900; letter-spacing: 0.18em; text-transform: uppercase; color: rgba(230,237,243,0.55);">Saved Session</div>
+                            <div id="zc-min-session" style="margin-top: 6px; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace; font-size: 12px; color: rgba(230,237,243,0.92); word-break: break-all;">-</div>
+                        </div>
+                        <div style="background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); border-radius: 14px; padding: 12px;">
+                            <div style="font-size: 11px; font-weight: 900; letter-spacing: 0.18em; text-transform: uppercase; color: rgba(230,237,243,0.55);">Clients (Live)</div>
+                            <div id="zc-min-count" style="margin-top: 6px; font-size: 18px; font-weight: 900;">-</div>
+                        </div>
+                    </div>
+
+                    <div style="margin-top: 12px; display:grid; grid-template-columns: 1fr 1fr; gap: 14px;">
+                        <div>
+                            <div style="display:flex; align-items:center; justify-content:space-between; gap:12px;">
+                                <div style="font-size: 11px; font-weight: 900; letter-spacing: 0.18em; text-transform: uppercase; color: rgba(230,237,243,0.55);">Editor Connections (DB)</div>
+                                <a id="zc-link-editor" href="#" target="_blank" rel="noreferrer" style="font-size: 11px; color: rgba(230,237,243,0.65);">/api/editor/connections</a>
+                            </div>
+                            <pre id="zc-min-editors" style="margin-top: 8px; padding: 12px; border-radius: 14px; background: rgba(0,0,0,0.28); border: 1px solid rgba(255,255,255,0.10); max-height: 280px; overflow:auto; font-size: 11px;">Loading...</pre>
+                        </div>
+                        <div>
+                            <div style="display:flex; align-items:center; justify-content:space-between; gap:12px;">
+                                <div style="font-size: 11px; font-weight: 900; letter-spacing: 0.18em; text-transform: uppercase; color: rgba(230,237,243,0.55);">Stock Clients Snapshot</div>
+                                <a id="zc-link-clients" href="#" target="_blank" rel="noreferrer" style="font-size: 11px; color: rgba(230,237,243,0.65);">/api/stock/clients</a>
+                            </div>
+                            <pre id="zc-min-clients" style="margin-top: 8px; padding: 12px; border-radius: 14px; background: rgba(0,0,0,0.28); border: 1px solid rgba(255,255,255,0.10); max-height: 280px; overflow:auto; font-size: 11px;">Loading...</pre>
+                        </div>
+                    </div>
+                </div>
+
+                <div style="background: rgba(0,0,0,0.25); border: 1px solid rgba(255,255,255,0.10); border-radius: 18px; padding: 14px; min-height: 420px;">
+                    <div style="display:flex; align-items:center; justify-content:space-between; gap:12px;">
+                        <div style="font-size: 14px; font-weight: 900; letter-spacing: 0.12em; text-transform: uppercase; color: rgba(230,237,243,0.78);">
+                            Event Log
+                        </div>
+                        <button id="zc-btn-clearlog" type="button"
+                            style="padding:8px 12px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.16); background: rgba(255,255,255,0.06); color:#e6edf3; font-weight: 900; cursor:pointer;">Clear Log</button>
+                    </div>
+                    <pre id="zc-min-log" style="margin-top: 10px; padding: 12px; border-radius: 14px; background: rgba(0,0,0,0.28); border: 1px solid rgba(255,255,255,0.10); height: 390px; overflow:auto; font-size: 11px;">Ready.</pre>
+                    <div style="margin-top: 10px; font-size: 11px; color: rgba(230,237,243,0.55);">
+                        <div><span style="font-weight:900;">SSE:</span> <a id="zc-link-sse" href="#" target="_blank" rel="noreferrer" style="color: rgba(230,237,243,0.75);">/sse</a></div>
+                        <div style="margin-top:4px;"><span style="font-weight:900;">Stream API:</span> <a id="zc-link-stream" href="#" target="_blank" rel="noreferrer" style="color: rgba(230,237,243,0.75);">/api/chat/stream</a></div>
+                        <div style="margin-top:4px;"><span style="font-weight:900;">WS:</span> <span id="zc-link-ws" style="font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;">-</span></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        window.__ZC_MINIMAL_DASHBOARD = true;
+
+        const ZC_MIN_SESSION_KEY = 'zc.editor.session';
+        const ZC_MIN_SESSION_TTL_MS = 48 * 60 * 60 * 1000;
+        const ZC_MIN_API_KEY = 'zc.dashboard.apiBase';
+
+        let zcWs = null;
+        let zcWsOpen = false;
+
+        function zcNow() {
+            return new Date().toISOString();
+        }
+
+        function zcLog(line) {
+            const el = document.getElementById('zc-min-log');
+            if (!el) return;
+            const prefix = `[${new Date().toLocaleTimeString()}] `;
+            el.textContent = `${prefix}${line}\n${el.textContent || ''}`.slice(0, 120000);
+        }
+
+        function zcNormalizeBase(base) {
+            const b = (base || '').trim();
+            return b.replace(/\/+$/, '');
+        }
+
+        function zcGetApiBase() {
+            const input = document.getElementById('zc-min-api');
+            const saved = localStorage.getItem(ZC_MIN_API_KEY);
+            const value = zcNormalizeBase((input && input.value) || saved || 'http://127.0.0.1:3000');
+            return value;
+        }
+
+        function zcSetApiBase(value) {
+            const base = zcNormalizeBase(value);
+            localStorage.setItem(ZC_MIN_API_KEY, base);
+            const input = document.getElementById('zc-min-api');
+            if (input) input.value = base;
+            zcUpdateLinks();
+        }
+
+        function zcDefaultWsUrl() {
+            const apiBase = zcGetApiBase();
+            let u;
+            try { u = new URL(apiBase); } catch { u = null; }
+            const proto = u?.protocol === 'https:' ? 'wss:' : 'ws:';
+            const manualHost = apiBase.replace(/^https?:\/\//, '').split('/')[0];
+            const host = u?.host || manualHost || window.location.host;
+            return `${proto}//${host}/ws?XTransformPort=9998`;
+        }
+
+        function zcLoadSession() {
+            try {
+                const raw = localStorage.getItem(ZC_MIN_SESSION_KEY);
+                if (!raw) return null;
+                const data = JSON.parse(raw);
+                if (!data || typeof data.sessionId !== 'string' || typeof data.expiresAt !== 'number') return null;
+                if (Date.now() > data.expiresAt) {
+                    localStorage.removeItem(ZC_MIN_SESSION_KEY);
+                    return null;
+                }
+                return data;
+            } catch {
+                return null;
+            }
+        }
+
+        function zcSaveSession(sessionId) {
+            if (!sessionId || typeof sessionId !== 'string') return;
+            const payload = { sessionId, savedAt: Date.now(), expiresAt: Date.now() + ZC_MIN_SESSION_TTL_MS };
+            localStorage.setItem(ZC_MIN_SESSION_KEY, JSON.stringify(payload));
+            zcUpdateSessionUI();
+        }
+
+        function zcClearSession() {
+            try { localStorage.removeItem(ZC_MIN_SESSION_KEY); } catch { }
+            zcUpdateSessionUI();
+            zcLog('Saved session cleared');
+        }
+
+        function zcUpdateSessionUI() {
+            const saved = zcLoadSession();
+            const el = document.getElementById('zc-min-session');
+            if (!el) return;
+            el.textContent = saved?.sessionId ? saved.sessionId : '-';
+        }
+
+        function zcSetWsStatus(ok) {
+            const pill = document.getElementById('zc-ws-pill');
+            if (!pill) return;
+            if (ok) {
+                pill.textContent = 'Connected';
+                pill.style.background = 'rgba(63,185,80,0.14)';
+                pill.style.borderColor = 'rgba(63,185,80,0.35)';
+                pill.style.color = '#3fb950';
+            } else {
+                pill.textContent = 'Disconnected';
+                pill.style.background = 'rgba(248,81,73,0.14)';
+                pill.style.borderColor = 'rgba(248,81,73,0.30)';
+                pill.style.color = '#f85149';
+            }
+        }
+
+        function zcUpdateLinks() {
+            const apiBase = zcGetApiBase();
+            const ws = document.getElementById('zc-min-ws');
+            const wsUrl = (ws && ws.value) ? ws.value.trim() : zcDefaultWsUrl();
+
+            const linkApi = document.getElementById('zc-link-api');
+            const linkEditor = document.getElementById('zc-link-editor');
+            const linkClients = document.getElementById('zc-link-clients');
+            const linkSse = document.getElementById('zc-link-sse');
+            const linkStream = document.getElementById('zc-link-stream');
+            const linkWs = document.getElementById('zc-link-ws');
+
+            if (linkApi) linkApi.href = apiBase || '#';
+            if (linkEditor) linkEditor.href = `${apiBase}/api/editor/connections`;
+            if (linkClients) linkClients.href = `${apiBase}/api/stock/clients`;
+            if (linkSse) linkSse.href = `${apiBase}/sse`;
+            if (linkStream) linkStream.href = `${apiBase}/api/chat/stream`;
+            if (linkWs) linkWs.textContent = wsUrl || '-';
+        }
+
+        async function zcRefresh() {
+            const apiBase = zcGetApiBase();
+            try {
+                const res = await fetch(`${apiBase}/api/editor/connections`, { cache: 'no-store' });
+                const json = await res.json();
+                const out = document.getElementById('zc-min-editors');
+                if (out) out.textContent = JSON.stringify(json, null, 2);
+            } catch (e) {
+                const out = document.getElementById('zc-min-editors');
+                if (out) out.textContent = `Error: ${e?.message || e}`;
+            }
+
+            try {
+                const res = await fetch(`${apiBase}/api/stock/clients`, { cache: 'no-store' });
+                const json = await res.json();
+                const payload = json?.data?.data || json?.data || json;
+                const count = payload?.count || payload?.clients?.length || payload?.data?.count || payload?.data?.clients?.length || '-';
+                const out = document.getElementById('zc-min-clients');
+                if (out) out.textContent = JSON.stringify(json, null, 2);
+                const countEl = document.getElementById('zc-min-count');
+                if (countEl) countEl.textContent = String(count);
+            } catch (e) {
+                const out = document.getElementById('zc-min-clients');
+                if (out) out.textContent = `Error: ${e?.message || e}`;
+            }
+        }
+
+        function zcDisconnect() {
+            try { if (zcWs) zcWs.close(); } catch { }
+            zcWs = null;
+            zcWsOpen = false;
+            zcSetWsStatus(false);
+            zcLog('WS disconnected');
+        }
+
+        function zcConnect() {
+            const wsInput = document.getElementById('zc-min-ws');
+            const wsUrl = (wsInput && wsInput.value ? wsInput.value : zcDefaultWsUrl()).trim();
+            if (wsInput && !wsInput.value) wsInput.value = wsUrl;
+            zcUpdateLinks();
+
+            try {
+                if (zcWs) {
+                    try { zcWs.close(); } catch { }
+                }
+                zcWs = new WebSocket(wsUrl);
+
+                zcWs.onopen = () => {
+                    zcWsOpen = true;
+                    zcSetWsStatus(true);
+                    zcLog(`WS connected: ${wsUrl}`);
+
+                    try {
+                        zcWs.send(JSON.stringify({ type: 'client.register', kind: 'browser', name: 'ZombieCoder Live Dashboard' }));
+                    } catch { }
+
+                    const saved = zcLoadSession();
+                    if (saved?.sessionId) {
+                        try { zcWs.send(JSON.stringify({ type: 'session.resume', sessionId: saved.sessionId })); } catch { }
+                        zcLog(`session.resume -> ${saved.sessionId}`);
+                    }
+
+                    void zcRefresh();
+                };
+
+                zcWs.onmessage = (ev) => {
+                    try {
+                        const msg = JSON.parse(ev.data);
+                        const event = msg?.event;
+
+                        if (event === 'heartbeat.ping') {
+                            try {
+                                zcWs.send(JSON.stringify({ type: 'heartbeat.pong', timestamp: zcNow() }));
+                                zcLog('heartbeat.pong sent (auto)');
+                            } catch { }
+                            return;
+                        }
+
+                        if (event === 'session.update' || event === 'session.resumed') {
+                            const sid = msg?.payload?.sessionId || msg?.sessionId;
+                            if (sid) {
+                                zcSaveSession(sid);
+                                zcLog(`${event} -> ${sid}`);
+                            }
+                        }
+
+                        if (event === 'clients.update') {
+                            const count = msg?.payload?.count;
+                            const countEl = document.getElementById('zc-min-count');
+                            if (countEl && typeof count === 'number') countEl.textContent = String(count);
+                            zcLog(`clients.update (count=${typeof count === 'number' ? count : '?'})`);
+                        }
+                    } catch {
+                        // ignore
+                    }
+                };
+
+                zcWs.onclose = () => {
+                    zcWsOpen = false;
+                    zcSetWsStatus(false);
+                    zcLog('WS closed');
+                };
+
+                zcWs.onerror = () => {
+                    zcWsOpen = false;
+                    zcSetWsStatus(false);
+                    zcLog('WS error');
+                };
+            } catch (e) {
+                zcSetWsStatus(false);
+                zcLog(`WS connect failed: ${e?.message || e}`);
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            if (window.location.protocol === 'file:') {
+                const warn = document.getElementById('zc-min-warning');
+                if (warn) warn.style.display = 'block';
+            }
+            const savedBase = localStorage.getItem(ZC_MIN_API_KEY);
+            if (savedBase) {
+                const input = document.getElementById('zc-min-api');
+                if (input) input.value = zcNormalizeBase(savedBase);
+            }
+
+            const wsInput = document.getElementById('zc-min-ws');
+            if (wsInput && !wsInput.value) wsInput.value = zcDefaultWsUrl();
+
+            zcUpdateLinks();
+            zcUpdateSessionUI();
+            zcSetWsStatus(false);
+
+            const apiInput = document.getElementById('zc-min-api');
+            if (apiInput) {
+                apiInput.addEventListener('change', () => {
+                    zcSetApiBase(apiInput.value);
+                    const ws = document.getElementById('zc-min-ws');
+                    if (ws) ws.value = zcDefaultWsUrl();
+                });
+            }
+
+            const btnConnect = document.getElementById('zc-btn-connect');
+            const btnDisconnect = document.getElementById('zc-btn-disconnect');
+            const btnRefresh = document.getElementById('zc-btn-refresh');
+            const btnClear = document.getElementById('zc-btn-clear');
+            const btnClearLog = document.getElementById('zc-btn-clearlog');
+
+            if (btnConnect) btnConnect.addEventListener('click', zcConnect);
+            if (btnDisconnect) btnDisconnect.addEventListener('click', zcDisconnect);
+            if (btnRefresh) btnRefresh.addEventListener('click', () => void zcRefresh());
+            if (btnClear) btnClear.addEventListener('click', zcClearSession);
+            if (btnClearLog) btnClearLog.addEventListener('click', () => {
+                const el = document.getElementById('zc-min-log');
+                if (el) el.textContent = 'Ready.';
+            });
+
+            void zcRefresh();
+        });
+    </script>
     <!-- GitHub-style Header -->
     <header class="top-header">
         <div class="header-left">
@@ -2613,6 +3123,7 @@
         }
 
         document.addEventListener('DOMContentLoaded', function () {
+            if (window.__ZC_MINIMAL_DASHBOARD) return;
             initializeNavigation();
             initializeAudio();
             showNotification('Zombie Coder Dashboard loaded successfully!', 'success');
@@ -3802,6 +4313,7 @@
 
         // Handle Enter key in chat input
         document.addEventListener('DOMContentLoaded', function () {
+            if (window.__ZC_MINIMAL_DASHBOARD) return;
             const chatInput = document.getElementById('chat-input');
             if (chatInput) {
                 chatInput.addEventListener('keypress', function (e) {
@@ -3841,6 +4353,7 @@
 
         // Start auto-refresh when page loads
         document.addEventListener('DOMContentLoaded', function () {
+            if (window.__ZC_MINIMAL_DASHBOARD) return;
             // Auto-refresh disabled by default
             stopAutoRefresh();
             autoRefreshEnabled = false;

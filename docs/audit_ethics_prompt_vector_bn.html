@@ -1,0 +1,487 @@
+<!doctype html>
+<html lang="bn">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>ZombieCoder — Ethics, Prompt, Session, Tooling & Vector Index Audit (BN)</title>
+  <style>
+    :root {
+      --bg: #0b1220;
+      --panel: rgba(255,255,255,0.06);
+      --panel2: rgba(0,0,0,0.28);
+      --border: rgba(255,255,255,0.12);
+      --text: rgba(230,237,243,0.92);
+      --muted: rgba(230,237,243,0.62);
+      --muted2: rgba(230,237,243,0.48);
+      --accent: #37d06f;
+      --warn: #f85149;
+      --blue: #58a6ff;
+      --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+    }
+    body {
+      margin: 0;
+      font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Noto Sans", "Liberation Sans", sans-serif;
+      background: radial-gradient(1200px 600px at 20% 0%, rgba(55,208,111,0.14), transparent 60%), var(--bg);
+      color: var(--text);
+    }
+    .wrap { max-width: 1180px; margin: 0 auto; padding: 22px 18px 64px 18px; }
+    .hero { display: grid; grid-template-columns: 1fr; gap: 10px; }
+    .title {
+      font-size: 28px;
+      font-weight: 950;
+      letter-spacing: .4px;
+      color: var(--accent);
+      line-height: 1.12;
+    }
+    .subtitle {
+      color: var(--muted);
+      font-size: 13px;
+      font-weight: 700;
+      line-height: 1.45;
+    }
+    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-top: 14px; }
+    @media (max-width: 980px) { .grid { grid-template-columns: 1fr; } }
+    .card {
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      background: var(--panel);
+      padding: 14px;
+    }
+    .h {
+      font-size: 12px;
+      font-weight: 950;
+      letter-spacing: .18em;
+      text-transform: uppercase;
+      color: rgba(230,237,243,0.72);
+      margin: 0 0 10px 0;
+    }
+    .p { color: var(--muted); font-size: 13px; line-height: 1.55; margin: 0; }
+    .list { margin: 10px 0 0 0; padding-left: 16px; color: var(--muted); font-size: 13px; line-height: 1.6; }
+    code, pre {
+      font-family: var(--mono);
+    }
+    pre {
+      margin: 10px 0 0 0;
+      padding: 12px;
+      border-radius: 14px;
+      background: var(--panel2);
+      border: 1px solid rgba(255,255,255,0.10);
+      overflow: auto;
+      font-size: 12px;
+      line-height: 1.5;
+      color: rgba(230,237,243,0.90);
+    }
+    .pill {
+      display: inline-block;
+      padding: 4px 10px;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 900;
+      border: 1px solid rgba(255,255,255,0.14);
+      background: rgba(255,255,255,0.05);
+      color: rgba(230,237,243,0.88);
+      margin-right: 8px;
+      margin-top: 8px;
+    }
+    .ok { border-color: rgba(63,185,80,0.45); background: rgba(63,185,80,0.14); color: #3fb950; }
+    .bad { border-color: rgba(248,81,73,0.45); background: rgba(248,81,73,0.14); color: var(--warn); }
+    .info { border-color: rgba(88,166,255,0.45); background: rgba(88,166,255,0.10); color: var(--blue); }
+    .sep { height: 1px; background: rgba(255,255,255,0.10); margin: 14px 0; }
+    .k { color: rgba(230,237,243,0.86); font-weight: 900; }
+    .small { font-size: 12px; color: var(--muted2); }
+    a { color: rgba(230,237,243,0.86); }
+    .toc a { color: rgba(230,237,243,0.82); text-decoration: none; border-bottom: 1px dashed rgba(255,255,255,0.22); }
+    .toc a:hover { color: #fff; border-bottom-color: rgba(255,255,255,0.55); }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="hero">
+      <div class="title">ZombieCoder — Ethics, Prompt, Session, Tooling & Vector Index Audit (বাংলা)</div>
+      <div class="subtitle">
+        এই ডকুমেন্টটি <span class="k">বর্তমান কোডবেসের বাস্তব অবস্থা</span> (কোন ডেমো/সিমুলেশন নয়) তুলে ধরে।
+        উদ্দেশ্য: editor/WS session integrity, ethics check, agent persona+memory prompt assembly, MCP tool execution truth, এবং Qdrant + BGE embedding দিয়ে লোকাল vector indexing পরিকল্পনা।
+      </div>
+      <div>
+        <span class="pill ok">No-mock / No-simulation audit</span>
+        <span class="pill info">Single Source of Truth: DB + API contracts</span>
+        <span class="pill bad">Tool-calling loop (model-native) currently missing</span>
+      </div>
+    </div>
+
+    <div class="grid">
+      <div class="card toc">
+        <div class="h">সূচিপত্র</div>
+        <ul class="list">
+          <li><a href="#scope">১) Scope ও সত্য-চেক নীতি</a></li>
+          <li><a href="#arch">২) আর্কিটেকচার: WS → API → DB (Single Source of Truth)</a></li>
+          <li><a href="#sessions">৩) Session persistence (48h) + editor connection audit</a></li>
+          <li><a href="#ethics">৪) Ethics check: হচ্ছে কি না, কোথায় হচ্ছে</a></li>
+          <li><a href="#prompt">৫) System prompt ছোট করা: persona না হারিয়ে mapping based config</a></li>
+          <li><a href="#tools">৬) MCP tools: বাস্তব execution + audit logs + security gate</a></li>
+          <li><a href="#toolcalling">৭) LLM tool-calling loop: বর্তমান সীমাবদ্ধতা ও প্রস্তাব</a></li>
+          <li><a href="#wsbinary">৮) WS JSON-এর বদলে binary pattern: কখন দরকার, কিভাবে</a></li>
+          <li><a href="#vector">৯) Qdrant + BGE embeddings: directory indexing plan (CACHEDIR.TAG, models--BAAI...)</a></li>
+          <li><a href="#filemap">১০) ফাইল/ফোল্ডার ম্যাপ: authoritative logic কোথায়</a></li>
+          <li><a href="#actions">১১) Action plan (ফেজড)</a></li>
+        </ul>
+      </div>
+
+      <div class="card">
+        <div class="h">বর্তমান টেস্টেড evidence (যেটা ইতিমধ্যে দেখা গেছে)</div>
+        <p class="p">
+          তোমার টার্মিনাল লগ অনুযায়ী <span class="k">/api/mcp/tools → tools list</span>, <span class="k">/api/mcp/execute → system_info run</span>, এবং <span class="k">/api/mcp/logs → execution log persisted</span> সত্যিই কাজ করেছে।
+          এটা প্রমাণ করে: MCP tool registry + executor + DB logging বাস্তব, সিমুলেশন না।
+        </p>
+        <pre>Observed (from terminal):
+- system_info executed in ~2ms
+- toolExecutionLog row written with outputResult
+- Next.js runtime env shows DATABASE_URL configured
+
+Implication:
+- Tool execution is real
+- Audit log is real</pre>
+      </div>
+    </div>
+
+    <div class="card" id="scope" style="margin-top:14px;">
+      <div class="h">১) Scope ও সত্য-চেক নীতি</div>
+      <p class="p">
+        এই অডিটের নিয়ম: “যা কোডে নেই, তা দাবি করা হবে না”।
+        <span class="k">Single Source of Truth</span> হিসেবে ধরা হয়েছে:
+        (১) API route code, (২) mini-services/stock-server WS implementation, (৩) Prisma DB writes/reads, (৪) MCP execution logs.
+      </p>
+      <div class="sep"></div>
+      <ul class="list">
+        <li><span class="k">No simulation</span>: WS server এবং API বাস্তবে একে অপরকে HTTP call করে, এবং DB তে persist করে।</li>
+        <li><span class="k">Evidence-first</span>: যেকোন ফিচার claim করলে সংশ্লিষ্ট ফাইল/route উল্লেখ করা হয়েছে।</li>
+        <li><span class="k">Limitation explicit</span>: LLM model-native tool calling loop বর্তমানে implement করা নেই—এটা এই ডকুমেন্টে স্পষ্ট।</li>
+      </ul>
+    </div>
+
+    <div class="card" id="arch" style="margin-top:14px;">
+      <div class="h">২) আর্কিটেকচার: WS → API → DB (Single Source of Truth)</div>
+      <p class="p">
+        বর্তমান ডিজাইনে “truth” একটি জায়গায়: <span class="k">Next.js API + DB</span>।
+        Stock WS server সরাসরি provider কে কল করে না—এটা <span class="k">/api/chat/stream</span> কল করে (SSE), এবং <span class="k">/api/stock/events</span> দিয়ে DB-তে event ingest করে।
+      </p>
+      <pre>WS (mini-services/stock-server/index.ts)
+  ├─ sessionExists()   → GET  {NEXTJS_BASE_URL}/api/sessions/{id}
+  ├─ createChatSession()→ POST {NEXTJS_BASE_URL}/api/sessions
+  ├─ processChat()     → POST {NEXTJS_BASE_URL}/api/chat/stream  (SSE)
+  └─ postStockEvent()  → POST {NEXTJS_BASE_URL}/api/stock/events (DB ingest)
+
+Next.js API
+  ├─ /api/chat/stream  → providerGateway.chatStream + memoryService persist
+  ├─ /api/stock/events → Prisma writes (editorClientConnection, editorWsRequestLog, editorSessionBinding)
+  └─ /api/editor/connections → 48h DB snapshot for dashboard/audit</pre>
+    </div>
+
+    <div class="grid" id="sessions">
+      <div class="card">
+        <div class="h">৩) Session persistence (48h) + editor connection audit</div>
+        <p class="p">
+          UI dashboard (docs/index.html minimal) LocalStorage-এ sessionId TTL=48h ধরে রাখে।
+          WS server <span class="k">session.resume</span> এলে DB-backed API দিয়ে validate করে—এটাই “real session” gate।
+        </p>
+        <pre>Truth points
+- WS server: session.resume → sessionExists(sessionId) (HTTP GET /api/sessions/{id})
+- If ok: client.hasRealSession = true; emits event: session.resumed
+- DB ingest: /api/stock/events type=bind_chat_session, client_ping
+- Audit API: GET /api/editor/connections (48h window)</pre>
+        <ul class="list">
+          <li><span class="k">Strength</span>: sessionId fake হলে WS server accept করে না (API validation দরকার)।</li>
+          <li><span class="k">Risk</span>: dashboard যদি <code>file://</code> থেকে খোলে, fetch/WS CORS ব্লক হবে (এটা UI তে warning যোগ করা হয়েছে)।</li>
+        </ul>
+      </div>
+      <div class="card">
+        <div class="h">Session integrity hardening (প্রস্তাব)</div>
+        <p class="p">
+          এখনকার integrity “exists check” এ নির্ভর। আরো শক্ত করতে চাইলে:
+        </p>
+        <ul class="list">
+          <li><span class="k">Session binding token</span>: /api/sessions create করলে server-signed token ফেরত দিবে; WS resume এ token validate হবে।</li>
+          <li><span class="k">Client identity fingerprint</span>: clientId + userAgent hash + ip constraints (soft) লগে রাখলে hijack detection সহজ হবে।</li>
+          <li><span class="k">Rate limiting</span>: /api/stock/events এ per-client throttling already আছে (ping 15s), কিন্তু ws_request_log এ rate guard দরকার হতে পারে।</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="card" id="ethics" style="margin-top:14px;">
+      <div class="h">৪) Ethics check: হচ্ছে কি না, কোথায় হচ্ছে</div>
+      <p class="p">
+        Ethics framework আছে <code>src/lib/ethics.ts</code> এ, এবং non-stream chat API তে enforce হচ্ছে <code>src/app/api/chat/route.ts</code> এ।
+        সেখানে সর্বশেষ user message নিয়ে <code>validateInput()</code> চালানো হয়; unsafe হলে 403 return করে।
+      </p>
+      <pre>Enforced now:
+- src/app/api/chat/route.ts
+  - validateInput(lastUserMessage.content)
+  - if !safe → 403 "Content blocked by ethical guidelines"
+
+Not enforced (as of current code):
+- src/app/api/chat/stream/route.ts  (stream route) does NOT call validateInput()</n
+Implication:
+- WS server path uses /api/chat/stream
+- So streaming path can bypass ethics unless we add the same check there</pre>
+      <div class="sep"></div>
+      <p class="p">
+        <span class="k">সুনির্দিষ্ট সিদ্ধান্ত</span>: “Ethics check করা হয় কিনা?” — উত্তর: <span class="k">/api/chat</span> এ হয়, কিন্তু <span class="k">/api/chat/stream</span> এ বর্তমানে নেই।
+        তোমার system যদি production-এ মূলত streaming route দিয়ে চলে, ethics enforcement সেখানে যোগ করাই single-source-of-truth হিসেবে বাধ্যতামূলক।
+      </p>
+    </div>
+
+    <div class="grid" id="prompt">
+      <div class="card">
+        <div class="h">৫) System prompt ছোট করা (persona না হারিয়ে)</div>
+        <p class="p">
+          বর্তমানে prompt assembly হয় <code>src/services/promptEngine.ts</code> এ:
+          identity anchor + personaName + agent.systemPrompt + language prefs + capabilities + behavioral rules + additionalContext.
+          এটা deterministic string build—ভালো। কিন্তু token footprint বড় হয়, বিশেষ করে memory context যোগ হলে।
+        </p>
+        <pre>Current builder: buildAgentSystemPrompt(agentConfig, additionalContext?)
+- Always appends BEHAVIORAL_RULES
+- Persona-specific identity block adds more lines
+- MemoryContext is appended as free text (AGENT_MEMORIES + CONVERSATION_MEMORIES)</pre>
+      </div>
+      <div class="card">
+        <div class="h">Mapping-based compact prompt (প্রস্তাবিত)</div>
+        <p class="p">
+          লক্ষ্য: prompt ছোট হবে, কিন্তু intent/persona হারাবে না। পদ্ধতি:
+          systemPrompt কে “human prose” না রেখে “compact protocol header” বানাও—যেটা config থেকে map হয়।
+        </p>
+        <pre>Compact format idea (example)
+
+[ZC]
+ID=ZombieCoder; OWNER=Sahon Srabon; ORG=Developer Zone
+PERS=TotkaSahon (if persona)
+LANG=bn; TECH=ts
+RULES=NO_HALLUCINATION|NO_REPEAT|IDENTITY_ANCHOR|BENGALI_DEFAULT
+CAP=code|audit|ws|db
+
+[AGENT]
+NAME=...; TYPE=coder; PROVIDER_ID=...; MODEL=...
+
+[MEM]
+A: topic1=...; topic2=...
+C: type1=...; type2=...
+
+Why it preserves intent:
+- Each key maps to stable semantics
+- Model sees constraints as explicit flags, not verbose narrative</pre>
+        <ul class="list">
+          <li><span class="k">Do</span>: behavioral rules ছোট করে symbolic flags + ১ লাইনের explanation রাখো।</li>
+          <li><span class="k">Do</span>: memory entries truncate + hash anchor (topicId) রাখো যাতে recall possible।</li>
+          <li><span class="k">Avoid</span>: একই identity prompt বারবার long form দেয়া।</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="card" id="tools" style="margin-top:14px;">
+      <div class="h">৬) MCP tools: বাস্তব execution + audit logs + security gate</div>
+      <p class="p">
+        MCP service: <code>src/services/mcpService.ts</code>
+        - Tool registry DB-backed (<code>mcpTool</code>)
+        - Execution logs DB-backed (<code>toolExecutionLog</code>)
+        - Critical security: agentId দিলে tool assignment না থাকলে deny + log
+      </p>
+      <pre>Tool execution truth
+- API: POST /api/mcp/execute → mcpService.executeTool()
+- DB: mcpTool lookup + enabled check
+- Security: agentToolAssignment unique check (agentId_toolId)
+- Executor: built-in executors (file_read, shell_execute, system_info, ...)
+- Audit: toolExecutionLog row written for success/error</pre>
+      <p class="p small" style="margin-top:10px;">
+        Note: built-in <code>shell_execute</code> whitelist আছে এবং dangerous patterns ব্লক করা হয় (rm -rf, sudo, curl|bash, etc.)।
+      </p>
+    </div>
+
+    <div class="card" id="toolcalling" style="margin-top:14px;">
+      <div class="h">৭) LLM tool-calling loop: বর্তমান সীমাবদ্ধতা ও প্রস্তাব</div>
+      <p class="p">
+        Providers (OpenAI/Ollama/Gemini/llama.cpp) implement করে: <code>chat()</code> এবং <code>chatStream()</code>।
+        কিন্তু tool calling orchestration (যেমন OpenAI <code>tool_calls</code>) নেই।
+        তাই “agent persona অনুযায়ী tools ব্যবহার করতে পারছে কিনা” প্রশ্নে—truth হলো:
+      </p>
+      <ul class="list">
+        <li><span class="k">Tools exist</span>: MCP tool execution real।</li>
+        <li><span class="k">Model auto-tool-use missing</span>: LLM response parse করে tool invoke করে আবার model-এ feed করার controller নেই।</li>
+      </ul>
+      <div class="sep"></div>
+      <p class="p">
+        <span class="k">প্রস্তাব</span>: “Tool Controller” layer
+      </p>
+      <pre>Minimal Tool Controller (design)
+1) Chat request arrives
+2) Build systemPrompt (compact)
+3) Ask provider for response
+4) Parse response for a strict tool directive format (not model-native, your own protocol)
+   e.g. "[TOOL] name=shell_execute args={...}"
+5) Execute via POST /api/mcp/execute (agentId+sessionId included)
+6) Append tool result as a tool message (role=tool) and continue
+7) Hard limits: max tool calls per turn, timeout, audit log</pre>
+      <p class="p small" style="margin-top:10px;">
+        তোমার security gate already আছে (agent-tool assignment)। Controller যোগ করলে tool usage সত্যিকারের “persona-driven” হবে।
+      </p>
+    </div>
+
+    <div class="card" id="wsbinary" style="margin-top:14px;">
+      <div class="h">৮) WS JSON-এর বদলে binary pattern</div>
+      <p class="p">
+        বর্তমানে WS payload JSON string (StandardEvent) — debug-friendly, audit-friendly।
+        Binary framing দরকার হয় যখন:
+        (১) throughput খুব বেশি, (২) payload heavy, (৩) latency-critical streaming, (৪) mobile/low-bandwidth।
+      </p>
+      <div class="sep"></div>
+      <p class="p"><span class="k">Recommendation</span> (practical):</p>
+      <ul class="list">
+        <li><span class="k">Keep JSON as canonical</span> for correctness + observability.</li>
+        <li><span class="k">Optional binary mode</span> add করো via subprotocol/flag:
+          <ul class="list">
+            <li>Client sends: <code>{"type":"client.register","encoding":"bin-v1"}</code></li>
+            <li>Server switches to: <code>ArrayBuffer</code> frames</li>
+          </ul>
+        </li>
+        <li><span class="k">Binary format</span>: CBOR / MessagePack safer than custom ad-hoc.</li>
+        <li><span class="k">Audit log</span>: server-side decode করে DB log অবশ্যই JSON/plain রাখবে।</li>
+      </ul>
+      <pre>Binary pitfalls (avoid)
+- Custom bit-level schema without versioning → breaks clients
+- No content-type/version field → cannot evolve
+- Losing debuggability → harder incident response
+
+If you go binary:
+- versioned header (magic + version + eventId + payloadLen)
+- keep a JSON mirror for ws_request_log</pre>
+    </div>
+
+    <div class="card" id="vector" style="margin-top:14px;">
+      <div class="h">৯) Qdrant + BGE embeddings: directory indexing plan</div>
+      <p class="p">
+        তোমার চাহিদা: নতুন directory দেখা গেলে তোমার logic অনুযায়ী data index হবে।
+        উদাহরণ path:
+        <code>CACHEDIR.TAG</code>, <code>models--BAAI--bge-large-en-v1.5</code>, <code>models--BAAI--bge-small-en-v1.5</code>.
+      </p>
+      <div class="sep"></div>
+      <p class="p"><span class="k">বর্তমান অবস্থা</span>:</p>
+      <ul class="list">
+        <li>Repo-তে Qdrant integration code এখনো locate করা হয়নি (এই ডকুমেন্ট scope অনুযায়ী: যোগ করার প্রস্তাব/ডিজাইন দেয়া হলো)।</li>
+        <li>মডেল cache directories likely HuggingFace cache layout; <code>CACHEDIR.TAG</code> indicates cache semantics.</li>
+      </ul>
+      <div class="sep"></div>
+      <p class="p"><span class="k">ডিজাইন: Offline-first vector indexer</span></p>
+      <pre>Proposed components
+A) File Watcher
+- Watches configured roots (e.g. ~/.cache/huggingface, project data dirs)
+- Ignores caches by default unless explicitly allowed
+- Reads CACHEDIR.TAG to decide policies
+
+B) Chunker
+- For text: split by size (e.g. 800-1200 tokens) + overlap
+- For code: split by file + function blocks
+
+C) Embedder (BGE)
+- Use one:
+  - BAAI/bge-large-en-v1.5 (better quality, slower)
+  - BAAI/bge-small-en-v1.5 (faster)
+- Must run locally (no cloud) as per audit requirement
+
+D) Vector DB (Qdrant)
+- Collections: project_files, docs, logs
+- Payload fields: path, mtime, sha256, chunk_id, language, repo, tags
+- Index key: (path, sha256) to detect changes</pre>
+      <p class="p"><span class="k">Index policy for cache dirs</span>:</p>
+      <ul class="list">
+        <li><span class="k">Default</span>: যদি directory-তে <code>CACHEDIR.TAG</code> থাকে → index skip (noise huge)।</li>
+        <li><span class="k">Override allowlist</span>: যদি তুমি <code>models--BAAI--bge-*</code> content metadata index করতে চাও (full weights না), তাহলে allowlist দিয়ে শুধু config/README/tokenizer files index করো।</li>
+        <li><span class="k">Safety</span>: binary weight files index না—শুধু metadata + naming + versions।</li>
+      </ul>
+      <pre>Qdrant query usage (expected)
+- User asks: "এই ফাইলে টুল কন্ট্রোলার কোথায়?"
+- Retriever returns top-k chunks
+- Prompt assembly adds: [RAG_CONTEXT] minimal + citations (path:line)
+
+This keeps prompt short while preserving intent.</pre>
+    </div>
+
+    <div class="card" id="filemap" style="margin-top:14px;">
+      <div class="h">১০) ফাইল/ফোল্ডার ম্যাপ: authoritative logic কোথায়</div>
+      <pre>Authoritative locations
+
+WebSocket / session / heartbeat
+- mini-services/stock-server/index.ts
+
+Stock ingest + editor audit
+- src/app/api/stock/events/route.ts
+- src/app/api/editor/connections/route.ts
+- src/app/api/stock/clients/route.ts
+
+Chat / agent persona / memory
+- src/app/api/chat/stream/route.ts   (streaming; persona+memory)
+- src/app/api/chat/route.ts          (non-stream; ethics enforced)
+- src/services/promptEngine.ts       (system prompt builder)
+- src/services/memoryService.ts      (session + message persistence)
+
+MCP tool execution
+- src/app/api/mcp/execute/route.ts
+- src/services/mcpService.ts
+
+Providers (real HTTP)
+- src/providers/OpenAIProvider.ts
+- src/providers/OllamaProvider.ts
+- src/providers/GeminiProvider.ts
+- src/providers/LlamaCppProvider.ts
+
+Ethics
+- src/lib/ethics.ts</pre>
+      <p class="p small" style="margin-top:10px;">
+        Critical note: streaming route ethics missing — এটা “single source of truth” নীতির বিরুদ্ধে।
+      </p>
+    </div>
+
+    <div class="card" id="actions" style="margin-top:14px;">
+      <div class="h">১১) Action plan (ফেজড, বাস্তব)</div>
+      <p class="p"><span class="k">Phase 0 — Truth hardening (must)</span></p>
+      <ul class="list">
+        <li><span class="k">Add ethics to /api/chat/stream</span>: validateInput(last user message) block on unsafe; return SSE error event + close stream.</li>
+        <li><span class="k">Unified ethics policy</span>: same categories + refusal text for both routes.</li>
+      </ul>
+      <div class="sep"></div>
+      <p class="p"><span class="k">Phase 1 — Compact prompt</span></p>
+      <ul class="list">
+        <li><span class="k">Prompt header mapping</span>: config→keys format; remove repeated prose.</li>
+        <li><span class="k">Memory compaction</span>: limit + truncation + topicId anchors.</li>
+      </ul>
+      <div class="sep"></div>
+      <p class="p"><span class="k">Phase 2 — Tool controller (optional but core for “agent uses tools”)</span></p>
+      <ul class="list">
+        <li><span class="k">Implement deterministic tool directive protocol</span> (strict parsing, not free-form).</li>
+        <li><span class="k">Execute via /api/mcp/execute</span> including agentId+sessionId for security + audit.</li>
+        <li><span class="k">Add tool result messages</span> back into the LLM context.</li>
+      </ul>
+      <div class="sep"></div>
+      <p class="p"><span class="k">Phase 3 — Qdrant indexing</span></p>
+      <ul class="list">
+        <li><span class="k">Offline embedder</span> using BGE small/large (choose one).</li>
+        <li><span class="k">Watcher + index policy</span> w/ CACHEDIR.TAG rules.</li>
+        <li><span class="k">RAG integration</span> into prompt assembly as citations.</li>
+      </ul>
+    </div>
+
+    <div class="card" style="margin-top:14px;">
+      <div class="h">শেষ কথা (authentic summary)</div>
+      <p class="p">
+        তোমার stack ইতিমধ্যে ৩টা জায়গায় শক্ত:
+        (১) WS session exists-check via API,
+        (২) DB-backed ingest + audit endpoints,
+        (৩) MCP tool execution + audit logs + assignment security.
+        এখন তোমার মূল gap দুইটা:
+        <span class="k">stream route ethics enforcement</span> এবং <span class="k">LLM tool-calling controller</span>।
+        এগুলো implement করলে “persona অনুযায়ী tool ব্যবহার” সত্যি হবে এবং একই সাথে prompt compact + vector retrieval যোগ করে scale করা যাবে।
+      </p>
+      <p class="p small" style="margin-top:10px;">
+        Doc generated for: ZombieCoder-Agentic-Hub (local).
+      </p>
+    </div>
+  </div>
+</body>
+</html>

@@ -238,8 +238,10 @@ export default function PublicChatPage() {
         </Button>
         <div className="mt-4 space-y-2 overflow-y-auto">
           {sessions.map((s) => (
-            <div
+            <button
               key={s.id}
+              type="button"
+              onClick={() => setCurrentSessionId(s.id)}
               className={`group w-full rounded-lg p-3 text-left transition ${s.id === currentSessionId ? "bg-zinc-700" : "hover:bg-zinc-800"}`}
             >
               <p className="truncate text-sm font-semibold">{s.title}</p>
@@ -257,13 +259,17 @@ export default function PublicChatPage() {
                   <MessageSquare className="size-3" /> Open
                 </button>
                 <button
-                  onClick={() => removeSession(s.id)}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    removeSession(s.id);
+                  }}
                   className="inline-flex items-center gap-1 text-xs text-zinc-400 hover:text-red-400"
                 >
                   <Trash2 className="size-3" /> Remove
                 </button>
               </div>
-            </div>
+            </button>
           ))}
         </div>
       </aside>

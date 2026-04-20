@@ -73,9 +73,10 @@ export async function POST(request: NextRequest) {
           agentModel = (agentConfig.config as { model?: string } | undefined)?.model;
 
           // Fetch agent memories for context
-          const { memories: agentMemories } = await memoryService.getAgentMemories(agent.id, { limit: 20 });
-          // Fetch recent individual memories
-          const { memories: individualMemories } = await memoryService.getIndividualMemories({ limit: 10 });
+          const [{ memories: agentMemories }, { memories: individualMemories }] = await Promise.all([
+            memoryService.getAgentMemories(agent.id, { limit: 20 }),
+            memoryService.getIndividualMemories({ limit: 10 }),
+          ]);
 
           // Build memory context
           const memoryContextParts: string[] = [];
