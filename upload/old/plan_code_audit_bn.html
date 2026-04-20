@@ -1,0 +1,289 @@
+<!doctype html>
+<html lang="bn">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Plan বনাম বর্তমান কোড অডিট রিপোর্ট</title>
+  <style>
+    :root {
+      --bg: #f4f7fb;
+      --card: #ffffff;
+      --text: #0f172a;
+      --muted: #475569;
+      --ok: #0f766e;
+      --partial: #b45309;
+      --bad: #b91c1c;
+      --line: #dbe3ef;
+      --accent: #0ea5e9;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: "Noto Sans Bengali", "Hind Siliguri", "Segoe UI", sans-serif;
+      color: var(--text);
+      background: linear-gradient(120deg, #eef5ff 0%, #f8fbff 60%, #f2f7ff 100%);
+    }
+    .wrap { max-width: 1100px; margin: 32px auto; padding: 0 16px; }
+    .hero {
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      padding: 20px;
+      box-shadow: 0 10px 30px rgba(15, 23, 42, 0.05);
+    }
+    h1 { margin: 0 0 8px; font-size: 28px; }
+    p { margin: 8px 0; color: var(--muted); line-height: 1.6; }
+    .meta { font-size: 14px; }
+    .grid {
+      display: grid;
+      gap: 12px;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      margin-top: 14px;
+    }
+    .kpi {
+      background: #f8fbff;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 12px;
+    }
+    .kpi h3 { margin: 0; font-size: 14px; color: var(--muted); }
+    .kpi strong { font-size: 24px; }
+    .section {
+      margin-top: 18px;
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      padding: 18px;
+    }
+    h2 { margin: 0 0 12px; font-size: 22px; }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 14px;
+      background: #fff;
+    }
+    th, td {
+      border: 1px solid var(--line);
+      padding: 10px;
+      vertical-align: top;
+      text-align: left;
+      line-height: 1.55;
+    }
+    th { background: #f3f8ff; }
+    .tag {
+      display: inline-block;
+      padding: 4px 10px;
+      border-radius: 999px;
+      font-weight: 700;
+      font-size: 12px;
+      border: 1px solid transparent;
+      white-space: nowrap;
+    }
+    .ok { color: var(--ok); background: #ecfeff; border-color: #99f6e4; }
+    .partial { color: var(--partial); background: #fffbeb; border-color: #fcd34d; }
+    .bad { color: var(--bad); background: #fef2f2; border-color: #fca5a5; }
+    code {
+      font-family: Consolas, "Cascadia Code", monospace;
+      background: #f1f5f9;
+      border: 1px solid #dbe3ef;
+      padding: 1px 5px;
+      border-radius: 6px;
+      font-size: 12px;
+    }
+    ul { margin: 8px 0 0; padding-left: 18px; }
+    li { margin: 4px 0; color: var(--muted); }
+    .note {
+      border-left: 4px solid var(--accent);
+      background: #f0f9ff;
+      padding: 10px 12px;
+      border-radius: 8px;
+      margin-top: 10px;
+      color: #0c4a6e;
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="hero">
+      <h1>Plan বনাম বর্তমান প্রজেক্ট কোড অডিট</h1>
+      <p>ফাইল <code>upload/plan.md</code> অনুযায়ী প্রত্যাশা আর বর্তমান কোডবেসের বাস্তব অবস্থা মিলিয়ে এই রিপোর্ট তৈরি করা হয়েছে।</p>
+      <p class="meta"><strong>অডিট তারিখ:</strong> 17 April 2026</p>
+      <div class="grid">
+        <div class="kpi"><h3>মোট পরিকল্পনা আইটেম</h3><strong>7</strong></div>
+        <div class="kpi"><h3>পুরোপুরি ঠিক আছে</h3><strong>1</strong></div>
+        <div class="kpi"><h3>আংশিক ঠিক আছে</h3><strong>5</strong></div>
+        <div class="kpi"><h3>গুরুতর গ্যাপ</h3><strong>1</strong></div>
+      </div>
+    </div>
+
+    <div class="section">
+      <h2>ডিটেইল গ্যাপ অ্যানালাইসিস</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>প্ল্যান আইটেম</th>
+            <th>বর্তমান অবস্থা (কী আছে)</th>
+            <th>রায়</th>
+            <th>কেমন হওয়া উচিত ছিল</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>1) Universal MCP config</strong></td>
+            <td>
+              <ul>
+                <li><code>.mcp/mcp_config.json</code> এ HTTP MCP আছে।</li>
+                <li>VSCode/Cursor/Windsurf snippet আছে।</li>
+                <li>কিন্তু WebSocket stock-server entry নেই।</li>
+                <li><code>STOCK_SERVER_BASE_URL</code>, <code>STOCK_DEFAULT_MODEL</code> placeholder নেই।</li>
+              </ul>
+            </td>
+            <td><span class="tag partial">আংশিক ঠিক</span></td>
+            <td>
+              একই কনফিগে ২টা server block থাকা দরকার ছিল:
+              <ul>
+                <li>HTTP MCP: <code>http://localhost:3000/api/mcp/*</code></li>
+                <li>WS/SSE stock-server: <code>ws://localhost:9998/</code> বা <code>/sse + /messages</code></li>
+                <li>Universal section-এ URL, headers, register payload example</li>
+              </ul>
+            </td>
+          </tr>
+
+          <tr>
+            <td><strong>2) Provider/model fallback & mismatch</strong></td>
+            <td>
+              <ul>
+                <li><code>src/services/providerGateway.ts</code> এ provider fallback chain আছে এবং clear error দেয়।</li>
+                <li><code>/api/chat</code> এ request/provider/agent binding আংশিক আছে।</li>
+                <li>Request-level model precedence পুরোপুরি ব্যবহার হচ্ছে না।</li>
+                <li>Stock server এ model নাম দেখে heuristic provider নির্বাচন হয় (mismatch risk থাকে)।</li>
+              </ul>
+            </td>
+            <td><span class="tag partial">আংশিক ঠিক</span></td>
+            <td>
+              strict precedence লাগতো:
+              <code>agent model &gt; request model &gt; DB default model &gt; env default</code>।
+              প্রতিবার selected provider/model audit-log এ persist করা উচিত।
+            </td>
+          </tr>
+
+          <tr>
+            <td><strong>3) Session vs Conversation vs Messages</strong></td>
+            <td>
+              <ul>
+                <li>Prisma schema তে <code>ChatSession</code> + <code>ChatMessage</code> আছে।</li>
+                <li>আলাদা <code>Conversation</code> মডেল নেই।</li>
+                <li>UI তে session reuse আছে, কিন্তু ChatGPT-style conversation thread layer আলাদা করা হয়নি।</li>
+              </ul>
+            </td>
+            <td><span class="tag bad">পুরোপুরি হয়নি</span></td>
+            <td>
+              আলাদা ৩ স্তর দরকার ছিল:
+              <ul>
+                <li>Editor Session (WS binding identity)</li>
+                <li>Conversation (sidebar thread)</li>
+                <li>Messages (conversation-এর অন্তর্ভুক্ত)</li>
+              </ul>
+            </td>
+          </tr>
+
+          <tr>
+            <td><strong>4) Streaming UX (thinking/typing)</strong></td>
+            <td>
+              <ul>
+                <li><code>src/components/dashboard/chat-panel.tsx</code> এ chunk-by-chunk rendering আছে।</li>
+                <li>assistant placeholder + live append আছে (typing effect)।</li>
+                <li>sending state এ “Generating...” টাইপ feedback আছে।</li>
+              </ul>
+            </td>
+            <td><span class="tag ok">ঠিক আছে</span></td>
+            <td>
+              একইভাবে রাখতে হবে, তবে “Thinking…” state-কে event-driven করলে আরও স্থিতিশীল হবে।
+            </td>
+          </tr>
+
+          <tr>
+            <td><strong>5) Editors page (observability proof)</strong></td>
+            <td>
+              <ul>
+                <li><code>src/app/editors/page.tsx</code> আছে, live clients দেখায়।</li>
+                <li><code>/api/stock/clients</code>, <code>/api/stock/events</code> integration আছে।</li>
+                <li>কিন্তু Create Session button, agent attach, allowed tools, last tool execution summary নেই।</li>
+              </ul>
+            </td>
+            <td><span class="tag partial">আংশিক ঠিক</span></td>
+            <td>
+              প্রতি client row-এ দরকার:
+              <ul>
+                <li>Create/Attach conversation button</li>
+                <li>Attached agent + allowed tool list</li>
+                <li>last message time + last tool execution</li>
+              </ul>
+            </td>
+          </tr>
+
+          <tr>
+            <td><strong>6) Agent tools permission UI + enforcement</strong></td>
+            <td>
+              <ul>
+                <li><code>mcpService.executeTool()</code> এ <code>agentToolAssignment</code> enforcement আছে।</li>
+                <li>WS mcp_execute-তেও <code>agentId</code> pass করার সুযোগ আছে।</li>
+                <li>কিন্তু Agents dashboard-এ assign/unassign tools UI নেই।</li>
+              </ul>
+            </td>
+            <td><span class="tag partial">আংশিক ঠিক</span></td>
+            <td>
+              Agents panel-এ checkbox-based tool assignment UI এবং API endpoints লাগতো
+              (<code>assign</code>/<code>unassign</code>/<code>list</code>)।
+            </td>
+          </tr>
+
+          <tr>
+            <td><strong>7) Memory stores: Agent vs Individual</strong></td>
+            <td>
+              <ul>
+                <li><code>AgentMemory</code> ও <code>IndividualMemory</code> আলাদা আছে এবং store হয়।</li>
+                <li><code>/api/chat</code> থেকে individual extraction trigger হয় (regex based)।</li>
+                <li>কিন্তু per user/editor session/conversation isolation নেই; global store টাইপ।</li>
+                <li>“last N memories with agentId/sessionId/conversationId” proof view নেই।</li>
+              </ul>
+            </td>
+            <td><span class="tag partial">আংশিক ঠিক</span></td>
+            <td>
+              Individual memory-তে <code>userId/editorSessionId/conversationId</code> ফিল্ড যোগ করে scoped persistence করতে হতো,
+              সাথে proof widget দরকার ছিল।
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="section">
+      <h2>শর্ট টেকনিক্যাল উপসংহার</h2>
+      <p>প্রকল্পে শক্তিশালী ভিত্তি আছে: MCP tools, stock-server integration, streaming chat, session/message persistence এগুলো বাস্তবভাবে কাজের অবস্থায় আছে। কিন্তু <strong>conversation model separation</strong> এবং <strong>agent-tool permission UI</strong> অংশ এখনও প্ল্যানের মান অনুযায়ী সম্পূর্ণ হয়নি।</p>
+      <div class="note">
+        <strong>PowerShell log note:</strong> আপনি যে <code>tee</code> error পেয়েছেন, সেটা Windows PowerShell-এ স্বাভাবিক।
+        বিকল্প কমান্ড: <code>bun run dev 2&gt;&amp;1 | Tee-Object dev.log</code>
+      </div>
+    </div>
+
+    <div class="section">
+      <h2>প্রমাণ হিসেবে দেখা ফাইলসমূহ</h2>
+      <p>
+        <code>upload/plan.md</code>,
+        <code>.mcp/mcp_config.json</code>,
+        <code>src/services/providerGateway.ts</code>,
+        <code>src/services/mcpService.ts</code>,
+        <code>src/app/api/chat/route.ts</code>,
+        <code>src/app/editors/page.tsx</code>,
+        <code>src/components/dashboard/chat-panel.tsx</code>,
+        <code>src/components/dashboard/agents-panel.tsx</code>,
+        <code>src/components/dashboard/memory-panel.tsx</code>,
+        <code>src/app/api/stock/events/route.ts</code>,
+        <code>mini-services/stock-server/index.ts</code>,
+        <code>prisma/schema.prisma</code>
+      </p>
+    </div>
+  </div>
+</body>
+</html>

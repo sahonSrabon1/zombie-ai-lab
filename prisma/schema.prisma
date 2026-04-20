@@ -1,0 +1,357 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// ─── System Identity (Read-Only) ────────────────────────────────────────────
+
+model SystemIdentity {
+  id              String @id @default("zombiecoder-v1")
+  name            String @default("ZombieCoder")
+  version         String @default("1.0.0")
+  tagline         String @default("যেখানে কোড ও কথা বলে")
+  owner           String @default("Sahon Srabon")
+  organization    String @default("Developer Zone")
+  address         String @default("235 South Pirarbag, Amtala Bazar, Mirpur - 60 feet")
+  location        String @default("Dhaka, Bangladesh")
+  phone           String @default("+880 1323-626282")
+  email           String @default("infi@zombiecoder.my.id")
+  website         String @default("https://zombiecoder.my.id/")
+  license         String @default("Proprietary - Local Freedom Protocol")
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+// ─── AI Providers ───────────────────────────────────────────────────────────
+
+model AiProvider {
+  id              String   @id @default(cuid())
+  name            String                        // Display name (e.g., "Ollama Local")
+  type            String                        // "ollama" | "openai" | "gemini" | "llamacpp"
+  status          String   @default("inactive") // "active" | "inactive" | "error"
+  isDefault       Boolean  @default(false)
+  
+  // Connection configuration
+  endpoint        String?                       // Base URL (e.g., "http://localhost:11434")
+  model           String?                       // Default model name
+  apiKeyEnvVar    String?                       // Env var name for API key (never store actual keys)
+  
+  // Provider-specific config (JSON)
+  config          String   @default("{}")       // JSON: temperature, maxTokens, etc.
+  
+  // Health tracking
+  lastHealthCheck DateTime?
+  latencyMs       Int?
+  errorCount      Int      @default(0)
+  lastError       String?
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  agents          Agent[]
+  chatSessions    ChatSession[]
+}
+
+// ─── Agents ─────────────────────────────────────────────────────────────────
+
+model Agent {
+  id              String   @id @default(cuid())
+  name            String                        // Agent display name
+  type            String                        // "editor" | "chat" | "cli" | "orchestrator"
+  status          String   @default("active")   // "active" | "inactive" | "maintenance"
+  personaName     String?                       // Persona identifier
+  systemPrompt    String?                       // Custom system prompt
+  description     String?                       // Agent description
+  
+  // Agent configuration (JSON)
+  config          String   @default("{}")       // JSON: maxTokens, temperature, capabilities, languagePreferences
+  
+  // Provider relationship
+  providerId      String?
+  provider        AiProvider? @relation(fields: [providerId], references: [id])
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  memories        AgentMemory[]
+  chatSessions    ChatSession[]
+  toolAssignments AgentToolAssignment[]
+}
+
+// ─── Agent Memories ─────────────────────────────────────────────────────────
+
+model AgentMemory {
+  id              String   @id @default(cuid())
+  agentId         String
+  agent           Agent    @relation(fields: [agentId], references: [id], onDelete: Cascade)
+  
+  content         String                        // Memory text content
+  topic           String?                       // Category/tag
+  priority        String   @default("normal")   // "low" | "normal" | "high" | "critical"
+  importance      Float    @default(3.0)        // 1.0 - 5.0 importance score
+  
+  // Metadata
+  sessionId       String?                       // Source session
+  metadata        String   @default("{}")       // JSON: additional context
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([agentId])
+  @@index([topic])
+}
+
+// ─── Individual (User) Memories ────────────────────────────────────────────
+
+model IndividualMemory {
+  id              String   @id @default(cuid())
+  
+  content         String                        // Memory text content
+  memoryType      String   @default("general")  // "general" | "technical" | "preference" | "fact"
+  importance      Float    @default(3.0)        // 1.0 - 5.0
+  
+  metadata        String   @default("{}")       // JSON: additional context
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+// ─── Chat Sessions ─────────────────────────────────────────────────────────
+
+model ChatSession {
+  id              String   @id @default(cuid())
+  
+  agentId         String?
+  agent           Agent?   @relation(fields: [agentId], references: [id])
+  providerId      String?
+  provider        AiProvider? @relation(fields: [providerId], references: [id])
+  
+  title           String?
+  status          String   @default("active")   // "active" | "closed" | "archived"
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  messages        ChatMessage[]
+  editorBindings  EditorSessionBinding[]
+}
+
+// ─── Chat Messages ──────────────────────────────────────────────────────────
+
+model ChatMessage {
+  id              String   @id @default(cuid())
+  sessionId       String
+  session         ChatSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  
+  role            String                        // "system" | "user" | "assistant" | "tool"
+  content         String
+  model           String?                       // Which model generated this
+  provider        String?                       // Which provider was used
+  tokenCount      Int?
+  latencyMs       Int?
+  
+  metadata        String   @default("{}")       // JSON: additional data
+  
+  createdAt       DateTime @default(now())
+
+  @@index([sessionId])
+}
+
+// ─── MCP Tools ──────────────────────────────────────────────────────────────
+
+model McpTool {
+  id              String   @id @default(cuid())
+  name            String   @unique
+  description     String
+  category        String   @default("general")  // "file" | "shell" | "web" | "code" | "system"
+  
+  // Input schema (JSON Schema)
+  inputSchema     String   @default("{}")       // JSON: parameter definitions
+  requiredAuth    Boolean  @default(false)      // Whether API key is required
+  
+  enabled         Boolean  @default(true)
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  assignments     AgentToolAssignment[]
+  executionLogs   ToolExecutionLog[]
+}
+
+// ─── Agent-Tool Assignments ─────────────────────────────────────────────────
+
+model AgentToolAssignment {
+  id              String   @id @default(cuid())
+  agentId         String
+  agent           Agent    @relation(fields: [agentId], references: [id], onDelete: Cascade)
+  toolId          String
+  tool            McpTool  @relation(fields: [toolId], references: [id], onDelete: Cascade)
+  
+  assignedAt      DateTime @default(now())
+
+  @@unique([agentId, toolId])
+}
+
+// ─── Tool Execution Logs ────────────────────────────────────────────────────
+
+model ToolExecutionLog {
+  id              String   @id @default(cuid())
+  toolId          String
+  tool            McpTool  @relation(fields: [toolId], references: [id])
+  
+  agentId         String?
+  sessionId       String?
+  
+  inputParams     String   @default("{}")       // JSON: what was sent
+  outputResult    String?                       // Tool output
+  status          String                        // "success" | "error" | "timeout"
+  errorMessage    String?
+  executionMs     Int?
+  
+  createdAt       DateTime @default(now())
+
+  @@index([toolId])
+  @@index([createdAt])
+}
+
+// ─── System Settings ────────────────────────────────────────────────────────
+
+model SystemSetting {
+  id              String   @id @default(cuid())
+  key             String   @unique              // Setting key
+  value           String                        // Setting value (can be JSON)
+  description     String?                       // Human-readable description
+  category        String   @default("general")  // "general" | "provider" | "security" | "performance"
+  isSecret        Boolean  @default(false)      // Whether value should be masked in API responses
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+// ─── API Audit Log ──────────────────────────────────────────────────────────
+
+model ApiAuditLog {
+  id              String   @id @default(cuid())
+  
+  method          String
+  path            String
+  statusCode      Int
+  ipAddress       String?
+  userAgent       String?
+  
+  requestBody     String?                       // Can be null for GET
+  responseTimeMs  Int?
+  errorMessage    String?
+  
+  createdAt       DateTime @default(now())
+
+  @@index([path])
+  @@index([createdAt])
+}
+
+model EditorClientConnection {
+  id              String   @id @default(cuid())
+  clientId         String   @unique
+  sessionId        String
+
+  connectedAt      DateTime @default(now())
+  disconnectedAt   DateTime?
+  lastPingAt       DateTime?
+
+  ipAddress        String?
+  userAgent        String?
+
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  bindings         EditorSessionBinding[]
+  wsLogs           EditorWsRequestLog[]
+
+  @@index([sessionId])
+  @@index([connectedAt])
+ }
+
+model EditorSessionBinding {
+  id              String   @id @default(cuid())
+
+  clientId        String
+  client          EditorClientConnection @relation(fields: [clientId], references: [clientId], onDelete: Cascade)
+
+  chatSessionId   String
+  chatSession     ChatSession @relation(fields: [chatSessionId], references: [id], onDelete: Cascade)
+
+  createdAt       DateTime @default(now())
+
+  @@unique([clientId, chatSessionId])
+  @@index([chatSessionId])
+ }
+
+model EditorWsRequestLog {
+  id              String   @id @default(cuid())
+  requestId       String?
+
+  clientId        String
+  client          EditorClientConnection @relation(fields: [clientId], references: [clientId], onDelete: Cascade)
+
+  editorSessionId String?
+  messageType     String?  // chat | mcp_execute | register
+
+  providerType    String?
+  model           String?
+  latencyMs       Int?
+
+  status          String   @default("success") // success | error
+  errorMessage    String?
+
+  metadata        String   @default("{}")
+  createdAt       DateTime @default(now())
+
+  @@index([clientId])
+  @@index([createdAt])
+ }
+
+// ─── Prompt Templates ───────────────────────────────────────────────────────
+
+model PromptTemplate {
+  id              String   @id @default(cuid())
+  name            String   @unique              // Template identifier
+  description     String?
+  
+  template        String                        // Template text with {variable} placeholders
+  inputVariables  String   @default("[]")       // JSON array of required variable names
+  category        String   @default("general")  // "identity" | "code" | "chat" | "ethical" | "custom"
+  isSystem        Boolean  @default(false)      // System templates cannot be deleted
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+model AuthUser {
+  id           String      @id @default(cuid())
+  name         String
+  email        String      @unique
+  passwordHash String
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+
+  sessions     AuthSession[]
+
+  @@index([email])
+}
+
+model AuthSession {
+  id         String   @id @default(cuid())
+  token      String   @unique
+  userId     String
+  user       AuthUser @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+
+  @@index([token])
+  @@index([userId])
+  @@index([expiresAt])
+}

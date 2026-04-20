@@ -1,0 +1,20 @@
+{
+  "cloudflared": {
+    "tunnelName": "zombiecoder-tunnel",
+    "tunnelId": "6ec068de-d21e-4e82-a446-e02ed28f8569",
+    "hostname": "mcp.zombiecoder.my.id",
+    "dns": {
+      "type": "CNAME",
+      "name": "mcp.zombiecoder.my.id",
+      "pointsTo": "6ec068de-d21e-4e82-a446-e02ed28f8569.cfargotunnel.com"
+    },
+    "replica": {
+      "replicaId": "dfccd129-0c1f-42f9-bbe0-6546d981e9e4",
+      "originIp": "103.197.251.220",
+      "edgeLocations": ["dac16", "bom09", "bom08"],
+      "version": "2026.3.0",
+      "arch": "linux_amd64",
+      "status": "Healthy"
+    }
+  }
+}

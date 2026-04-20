@@ -1,0 +1,43 @@
+
+{
+  "project": {
+    "name": "zombiecoder-agentic-hub",
+    "workspace": "${WORKSPACE_ROOT}"
+  },
+  "servers": {
+    "zombiecoder-mcp-http": {
+      "transport": "http",
+      "note": "This is the HTTP transport for the ZombieCoder MCP server. It is used by VS Code, Cursor, and Windsurf.",
+      "baseUrl": "http://localhost:3000",
+      "endpoints": {
+        "executeTool": "/api/mcp/execute",
+        "listTools": "/api/mcp/tools",
+        "logs": "/api/mcp/logs",
+        "stats": "/api/mcp/stats",
+        "editorConfig": "/api/mcp/config"
+      },
+      "auth": {
+        "apiKeyEnvVar": "UAS_API_KEY",
+        "headerName": "x-api-key"
+      }
+    }
+  },
+  "editorSnippets": {
+    "vscode": {
+      "note": "Copy into your VS Code MCP client settings (if your MCP client supports HTTP transport).",
+      "server": "zombiecoder-mcp-http",
+      "workspace": "${WORKSPACE_ROOT}"
+    },
+    "cursor": {
+      "note": "Copy into Cursor MCP settings. Ensure it supports HTTP-based MCP; otherwise use the app UI endpoints directly.",
+      "server": "zombiecoder-mcp-http",
+      "workspace": "${WORKSPACE_ROOT}"
+    },
+    "windsurf": {
+      "note": "Copy into Windsurf MCP settings or use the /api/mcp/config endpoint from this app.",
+      "server": "zombiecoder-mcp-http",
+      "workspace": "${WORKSPACE_ROOT}"
+    }
+  }
+}
+

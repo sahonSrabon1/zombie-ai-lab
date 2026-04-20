@@ -1,0 +1,37 @@
+{
+  "mcpServers": {
+    "browser": {
+      "url": "https://broadfield-dev-browser.hf.space/gradio_api/mcp/sse"
+    },
+    "huggingface": {
+      "headers": {
+        "Authorization": "Bearer HF_TOKEN_REDACTED"
+      },
+      "url": "https://huggingface.co/mcp"
+    },
+    "io.windsurf/mcp-playwright": {
+      "args": [
+        "-y",
+        "@playwright/mcp@latest"
+      ],
+      "command": "npx",
+      "registry": "io.windsurf/mcp-playwright"
+    },
+    "jina-search": {
+      "url": "https://Svngoku-jina-search-mcp.hf.space/gradio_api/mcp/sse"
+    },
+    "multi-agent-research": {
+      "url": "https://Agents-MCP-Hackathon-multi-agent-deep-research.hf.space/gradio_api/mcp/sse"
+    },
+    "stock-server": {
+      "disabled": false,
+      "url": "http://localhost:9998/sse"
+    },
+    "websearch": {
+      "url": "https://victor-websearch.hf.space/gradio_api/mcp/sse"
+    },
+    "z-image-turbo": {
+      "url": "https://mrfakename-Z-Image-Turbo.hf.space/gradio_api/mcp/sse"
+    }
+  }
+}

@@ -1,0 +1,311 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ZombieCoder - যেখানে কোড ও কথা বলে</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Roboto+Mono&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --google-blue: #4285F4;
+            --google-purple: #9333EA;
+        }
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #000;
+            color: #fff;
+            margin: 0;
+            overflow-x: hidden;
+        }
+        .bg-grid {
+            background-image: 
+                linear-gradient(to right, rgba(255,255,255,0.03) 1px, transparent 1px),
+                linear-gradient(to bottom, rgba(255,255,255,0.03) 1px, transparent 1px);
+            background-size: 50px 50px;
+        }
+        .glow-effect {
+            position: absolute;
+            background: radial-gradient(circle, rgba(66, 133, 244, 0.15) 0%, transparent 70%);
+            pointer-events: none;
+        }
+        .glass-card {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            backdrop-filter: blur(10px);
+        }
+        .text-gradient {
+            background: linear-gradient(to right, #fff, #888);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .mono { font-family: 'Roboto Mono', monospace; }
+        
+        @keyframes float {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-10px); }
+        }
+        .animate-float { animation: float 6s ease-in-out infinite; }
+    </style>
+<link rel="stylesheet" href="/index.css">
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="module">
+        import React from 'https://esm.sh/react@19';
+        import ReactDOM from 'https://esm.sh/react-dom@19/client';
+        import htm from 'https://esm.sh/htm';
+        import * as Lucide from 'https://esm.sh/lucide-react';
+
+        const html = htm.bind(React.createElement);
+
+        // --- Shared Components ---
+        
+        const Button = ({ children, variant = 'primary', className = '', ...props }) => {
+            const baseStyles = "px-6 py-2.5 rounded-full text-sm font-medium transition-all flex items-center gap-2";
+            const variants = {
+                primary: "bg-white text-black hover:bg-gray-200",
+                secondary: "border border-white/20 text-white hover:bg-white/5",
+                ghost: "text-gray-400 hover:text-white"
+            };
+            return html`<button className="${baseStyles} ${variants[variant]} ${className}" ...${props}>${children}</button>`;
+        };
+
+        // --- Section Components ---
+
+        const Nav = () => html`
+            <nav className="fixed top-0 w-full z-50 border-b border-white/5 bg-black/60 backdrop-blur-xl">
+                <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
+                    <div className="flex items-center gap-2 group cursor-pointer">
+                        <div className="w-8 h-8 bg-gradient-to-br from-red-500 to-purple-600 rounded-lg flex items-center justify-center">
+                            <${Lucide.Skull} className="w-5 h-5 text-white" />
+                        </div>
+                        <span className="text-lg font-semibold tracking-tight">ZombieCoder</span>
+                    </div>
+                    <div className="hidden md:flex items-center gap-8">
+                        <a href="/pricing.html" className="text-gray-400 hover:text-white text-sm">Pricing</a>
+                        <a href="/documentation.html" className="text-gray-400 hover:text-white text-sm">Documentation</a>
+                        <a href="/case-studies.html" className="text-gray-400 hover:text-white text-sm">Case studies</a>
+                        <${Button} variant="secondary" onClick=${() => window.location.href = '/get-started.html'}>
+                            <${Lucide.LogIn} className="w-4 h-4" />
+                            Get started
+                        </${Button}>
+                    </div>
+                </div>
+            </nav>
+        `;
+
+        const Hero = () => html`
+            <section className="relative pt-40 pb-20 overflow-hidden">
+                <div className="absolute inset-0 bg-grid opacity-40" />
+                <div className="container mx-auto px-6 text-center relative z-10">
+                    <h1 className="text-6xl md:text-8xl font-light mb-8 tracking-tighter leading-none">
+                        ZombieCoder <br /> <span className="text-gray-500">যেখানে কোড ও কথা বলে</span>
+                    </h1>
+                    <p className="max-w-2xl mx-auto text-lg md:text-xl text-gray-400 font-light mb-12">
+                        Build functional, shareable apps with native AI features in minutes. 
+                        No complex setups. Just prompt, remix, and deploy with ZombieCoder.
+                    </p>
+                    <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-24">
+                        <${Button}>
+                            <${Lucide.Terminal} className="w-4 h-4" />
+                            Build your first app
+                        </${Button}>
+                        <${Button} variant="secondary">
+                            <${Lucide.LayoutGrid} className="w-4 h-4" />
+                            Explore the app gallery
+                        </${Button}>
+                    </div>
+
+                    <div className="max-w-5xl mx-auto glass-card rounded-3xl p-1 relative group overflow-hidden animate-float">
+                        <div className="absolute inset-0 bg-gradient-to-tr from-blue-500/10 to-purple-500/10 opacity-0 group-hover:opacity-100 transition-opacity" />
+                        <div className="bg-black/40 rounded-[22px] aspect-video flex flex-col items-center justify-center p-12">
+                            <${Lucide.Skull} className="w-16 h-16 text-red-500 mb-8 opacity-80" />
+                            <h2 className="text-4xl md:text-6xl font-medium tracking-tight">
+                                Go from idea to <br /> <span className="text-red-400">app with ZombieCoder</span>
+                            </h2>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        `;
+
+        const Feature = ({ tag, title, desc, btn, reverse, children }) => html`
+            <section className="py-24 border-t border-white/5">
+                <div className="container mx-auto px-6 flex flex-col ${reverse ? 'md:flex-row-reverse' : 'md:flex-row'} items-center gap-20">
+                    <div className="flex-1 space-y-6">
+                        <span className="text-xs font-semibold uppercase tracking-widest text-blue-500">${tag}</span>
+                        <h2 className="text-4xl font-normal leading-tight">${title}</h2>
+                        <p className="text-lg text-gray-400 font-light leading-relaxed">${desc}</p>
+                        <${Button} variant="secondary" className="mt-4">
+                            <${Lucide.ArrowUpRight} className="w-4 h-4" />
+                            ${btn}
+                        </${Button}>
+                    </div>
+                    <div className="flex-1 w-full">
+                        <div className="glass-card rounded-2xl p-6 shadow-2xl relative overflow-hidden">
+                            ${children}
+                        </div>
+                    </div>
+                </div>
+            </section>
+        `;
+
+        const AppGallery = () => {
+            const apps = [
+                { title: "Home Canvas", tag: "Gemini 2.5 Flash", img: "https://images.unsplash.com/photo-1586023492125-27b2c045efd7?w=800&q=80", desc: "Drag and drop furniture generator." },
+                { title: "Past Forward", tag: "Gemini 2.5 Flash", img: "https://images.unsplash.com/photo-1516035069371-29a1b244cc32?w=800&q=80", desc: "Visualize yourself through the decades." }
+            ];
+            return html`
+                <section className="py-32 bg-neutral-950/50">
+                    <div className="container mx-auto px-6">
+                        <h2 className="text-4xl font-normal mb-16">Explore and remix apps <br /> <span className="text-gray-500">built in ZombieCoder</span></h2>
+                        <div className="grid md:grid-cols-2 gap-12">
+                            ${apps.map((app, i) => html`
+                                <div key=${i} className="group cursor-pointer">
+                                    <div className="aspect-video rounded-3xl overflow-hidden mb-6 border border-white/10">
+                                        <img src=${app.img} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700 opacity-80" />
+                                    </div>
+                                    <div className="flex justify-between items-center mb-2">
+                                        <h3 className="text-2xl font-medium">${app.title}</h3>
+                                        <span className="text-[10px] bg-white/10 px-2 py-1 rounded-md text-gray-400">${app.tag}</span>
+                                    </div>
+                                    <p className="text-gray-400 font-light">${app.desc}</p>
+                                </div>
+                            `)}
+                        </div>
+                    </div>
+                </section>
+            `;
+        };
+
+        const ModelGrid = () => {
+            const models = [
+                { name: "Gemini", icon: Lucide.Sparkles, desc: "Our most capable model for complex reasoning and coding." },
+                { name: "Imagen", icon: Lucide.Image, desc: "High-fidelity image generation for creative workflows." },
+                { name: "Veo", icon: Lucide.Video, desc: "Professional-grade video generation for storytellers." },
+                { name: "TTS", icon: Lucide.Mic2, desc: "Natural, multi-speaker text-to-speech synthesis." },
+                { name: "Gemma", icon: Lucide.Box, desc: "Open-weight models for edge computing and research." },
+                { name: "Search", icon: Lucide.Search, desc: "Grounding capabilities for real-world information." }
+            ];
+            return html`
+                <section className="py-32 border-t border-white/5">
+                    <div className="container mx-auto px-6">
+                        <h2 className="text-2xl font-medium mb-12">Explore our models</h2>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                            ${models.map((m, i) => html`
+                                <div key=${i} className="glass-card p-8 rounded-3xl hover:border-white/20 transition-all group cursor-pointer">
+                                    <div className="w-12 h-12 rounded-xl bg-white/5 flex items-center justify-center mb-6 group-hover:bg-blue-500/10 transition-colors">
+                                        <${m.icon} className="w-6 h-6 text-gray-400 group-hover:text-blue-400" />
+                                    </div>
+                                    <h3 className="text-xl font-medium mb-2">${m.name}</h3>
+                                    <p className="text-sm text-gray-500 font-light leading-relaxed">${m.desc}</p>
+                                </div>
+                            `)}
+                        </div>
+                    </div>
+                </section>
+            `;
+        };
+
+        const App = () => html`
+            <div className="min-h-screen">
+                <${Nav} />
+                <${Hero} />
+                
+                <${Feature} 
+                    tag="Build AI first apps"
+                    title="Easily add AI features with a single prompt"
+                    desc="Build Mode helps you create AI-native apps. It automatically integrates image generation, video understanding, and grounding where fit."
+                    btn="Prompt your first app"
+                >
+                    <div className="space-y-4">
+                        <div className="p-4 bg-white/5 rounded-xl border border-white/10 flex items-center gap-4">
+                            <${Lucide.Image} className="w-5 h-5 text-blue-400" />
+                            <span className="text-sm">AI image editing enabled</span>
+                        </div>
+                        <div className="p-4 bg-white/5 rounded-xl border border-white/10 opacity-50 italic text-sm">
+                            "Create an app that translates my sketches into 3D models..."
+                        </div>
+                        <div className="h-10 w-full bg-blue-500/20 rounded-lg animate-pulse" />
+                    </div>
+                </${Feature}>
+
+                <${Feature} 
+                    tag="Easy to start, deploy and share"
+                    title="Remix apps and publish in seconds"
+                    desc="Start from scratch or remix an existing app to jumpstart your project. One-click deployment with built-in hosting."
+                    btn="Explore the gallery"
+                    reverse=${true}
+                >
+                    <div className="bg-neutral-900 rounded-xl overflow-hidden border border-white/10">
+                        <div className="h-8 bg-white/5 flex items-center px-4 gap-2">
+                            <div className="w-2 h-2 rounded-full bg-red-500/50" />
+                            <div className="w-2 h-2 rounded-full bg-yellow-500/50" />
+                            <div className="w-2 h-2 rounded-full bg-green-500/50" />
+                        </div>
+                        <div className="p-8 text-center">
+                            <div className="text-4xl font-bold opacity-10 mb-2">REMIXABLE</div>
+                            <div className="flex justify-center gap-2">
+                                <${Lucide.RefreshCcw} className="w-4 h-4 text-blue-500" />
+                                <span className="text-xs text-blue-500">Updating components...</span>
+                            </div>
+                        </div>
+                    </div>
+                </${Feature}>
+
+                <${Feature} 
+                    tag="Advanced Coding"
+                    title="Powered by Gemini 3 Pro Preview"
+                    desc="Built for complex reasoning and coding. Describe your vision and watch the AI generate full-stack applications."
+                    btn="Start building"
+                >
+                    <div className="bg-neutral-900 p-6 rounded-xl border border-white/10 mono text-xs text-blue-300">
+                        <div className="mb-2 text-gray-500">// Gemini 3 Pro Code Generation</div>
+                        <div className="mb-1">export const <span className="text-purple-400">AIChat</span> = () => {</div>
+                        <div className="ml-4">const [msg, setMsg] = <span className="text-yellow-400">useState</span>([]);</div>
+                        <div className="ml-4">return ( <span className="text-gray-400">...</span> );</div>
+                        <div>}</div>
+                    </div>
+                </${Feature}>
+
+                <${AppGallery} />
+                <${ModelGrid} />
+
+                <footer className="py-20 border-t border-white/5 text-center">
+                    <div className="container mx-auto px-6">
+                        <div className="flex items-center justify-center gap-2 mb-8">
+                            <div className="w-10 h-10 bg-gradient-to-tr from-red-500 to-purple-500 rounded-lg flex items-center justify-center">
+                                <${Lucide.Skull} className="w-6 h-6 text-white" />
+                            </div>
+                            <span className="text-2xl font-semibold">ZombieCoder</span>
+                        </div>
+                        <p className="text-gray-500 mb-4">Start building the future with ZombieCoder today.</p>
+                        <div className="text-gray-500 mb-12 space-y-2">
+                            <p className="text-sm">Organization: Developer Zone</p>
+                            <p className="text-sm">Address: 235 South Pirarbag, Amtala Bazar, Mirpur - 60 feet, Dhaka, Bangladesh</p>
+                            <p className="text-sm">Phone: +880 1323-626282 | Email: infi@zombiecoder.my.id</p>
+                            <p className="text-sm">Website: <a href="https://zombiecoder.my.id/" className="text-blue-400 hover:underline">zombiecoder.my.id</a></p>
+                        </div>
+                        <div className="flex flex-wrap justify-center gap-8 text-sm text-gray-500">
+                            <a href="/privacy.html" className="hover:text-white">Privacy</a>
+                            <a href="/terms.html" className="hover:text-white">Terms</a>
+                            <a href="/documentation.html" className="hover:text-white">Documentation</a>
+                            <a href="/api-pricing.html" className="hover:text-white">API Pricing</a>
+                        </div>
+                        <div className="mt-16 text-xs text-gray-700">
+                            &copy; 2026 ZombieCoder. Built with native AI capability by Developer Zone.
+                        </div>
+                    </div>
+                </footer>
+            </div>
+        `;
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(html`<${App} />`);
+    </script>
+<script type="module" src="/index.tsx"></script>
+</body>
+</html>
