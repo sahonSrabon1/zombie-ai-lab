@@ -10,6 +10,8 @@
       "note": "This is the HTTP transport for the ZombieCoder MCP server. It is used by VS Code, Cursor, and Windsurf.",
       "baseUrl": "http://localhost:3000",
       "endpoints": {
+        "mcp": "/mcp",
+        "sse": "/sse",
         "executeTool": "/api/mcp/execute",
         "listTools": "/api/mcp/tools",
         "logs": "/api/mcp/logs",
