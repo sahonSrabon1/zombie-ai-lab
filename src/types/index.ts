@@ -78,6 +78,10 @@ export interface StreamChunk {
   id: string;
   type: 'chunk' | 'done' | 'error';
   content?: string;
+  model?: string;
+  provider?: string;
+  tokenCount?: number;
+  latencyMs?: number;
   finishReason?: string;
   error?: string;
 }

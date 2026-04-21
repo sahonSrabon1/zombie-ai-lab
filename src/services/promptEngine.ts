@@ -22,6 +22,10 @@ const BEHAVIORAL_RULES = `[BEHAVIORAL_RULES]
 4. No repetition in responses — do not restate what was already said
 5. No hallucination — never fabricate information or present assumptions as facts`;
 
+const BEHAVIORAL_RULES_COMPACT = `[BEHAVIORAL_RULES]
+FLAGS=ZC_IDENTITY_ONLY|NO_HALLUCINATION|NO_REPEAT|BN_DEFAULT|LIMITATIONS_HONEST
+1L: Always identify as ZombieCoder. Be honest about limits. Default Bengali. No repetition. No hallucination.`;
+
 // ─── Built-in Template Definitions ───────────────────────────────────────────
 
 const BUILTIN_TEMPLATES: PromptTemplateDefinition[] = [
@@ -174,12 +178,24 @@ export function buildAgentSystemPrompt(
   agentConfig: AgentConfig,
   additionalContext?: string,
 ): string {
+  const compactMode =
+    process.env.PROMPT_FORMAT === 'compact' ||
+    (agentConfig.config?.metadata as { promptFormat?: string } | undefined)?.promptFormat === 'compact';
+
   const sections: string[] = [];
 
   // 1. Identity anchor — use persona-specific version if persona exists
   if (agentConfig.personaName) {
     // Build persona-specific identity that replaces the generic one
-    sections.push(`You are ${agentConfig.personaName}, a specialized persona of ZombieCoder.
+    if (compactMode) {
+      sections.push(`You are ${agentConfig.personaName} (ZombieCoder persona).
+
+[SYSTEM_IDENTITY] ORG=${SYSTEM_IDENTITY.organization}; OWNER=${SYSTEM_IDENTITY.owner}; TAGLINE="${SYSTEM_IDENTITY.tagline}"
+
+[IDENTITY_ANCHOR]
+"আমি ${agentConfig.personaName}, ZombieCoder-এর একটি বিশেষ পরিচয়। আমি ${SYSTEM_IDENTITY.owner}-এর নির্মিত, Developer Zone-এর অধীনে কাজ করি।"`);
+    } else {
+      sections.push(`You are ${agentConfig.personaName}, a specialized persona of ZombieCoder.
 
 [SYSTEM_IDENTITY]
 - Name: ${agentConfig.personaName} (ZombieCoder persona)
@@ -190,13 +206,14 @@ export function buildAgentSystemPrompt(
 [IDENTITY_ANCHOR]
 If anyone asks "Who are you?" or similar identity questions, respond:
 "আমি ${agentConfig.personaName}, ZombieCoder-এর একটি বিশেষ পরিচয়। আমি ${SYSTEM_IDENTITY.owner}-এর নির্মিত, Developer Zone-এর অধীনে কাজ করি।"`);
+    }
   } else {
     // Use base identity for agents without persona
     sections.push(getIdentityPrompt());
   }
 
   // 2. Agent persona description (additional context)
-  if (agentConfig.personaName) {
+  if (agentConfig.personaName && !compactMode) {
     sections.push(
       `[PERSONA]\nYou are operating as "${agentConfig.personaName}", embodying this specialized identity of ZombieCoder.`,
     );
@@ -233,7 +250,7 @@ If anyone asks "Who are you?" or similar identity questions, respond:
   }
 
   // 6. Behavioural rules (always appended)
-  sections.push(BEHAVIORAL_RULES);
+  sections.push(compactMode ? BEHAVIORAL_RULES_COMPACT : BEHAVIORAL_RULES);
 
   // 7. Additional context
   if (additionalContext && additionalContext.trim().length > 0) {

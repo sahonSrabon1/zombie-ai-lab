@@ -238,10 +238,17 @@ export default function PublicChatPage() {
         </Button>
         <div className="mt-4 space-y-2 overflow-y-auto">
           {sessions.map((s) => (
-            <button
+            <div
               key={s.id}
-              type="button"
+              role="button"
+              tabIndex={0}
               onClick={() => setCurrentSessionId(s.id)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault();
+                  setCurrentSessionId(s.id);
+                }
+              }}
               className={`group w-full rounded-lg p-3 text-left transition ${s.id === currentSessionId ? "bg-zinc-700" : "hover:bg-zinc-800"}`}
             >
               <p className="truncate text-sm font-semibold">{s.title}</p>
@@ -269,7 +276,7 @@ export default function PublicChatPage() {
                   <Trash2 className="size-3" /> Remove
                 </button>
               </div>
-            </button>
+            </div>
           ))}
         </div>
       </aside>

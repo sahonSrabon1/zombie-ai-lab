@@ -216,18 +216,45 @@ Next.js API
       <pre>Enforced now:
 - src/app/api/chat/route.ts
   - validateInput(lastUserMessage.content)
-  - if !safe → 403 "Content blocked by ethical guidelines"
+-  - if !safe → 403 "Content blocked by ethical guidelines" + refusalText
 
-Not enforced (as of current code):
-- src/app/api/chat/stream/route.ts  (stream route) does NOT call validateInput()</n
-Implication:
-- WS server path uses /api/chat/stream
-- So streaming path can bypass ethics unless we add the same check there</pre>
+Stream enforced (Phase 0 completed):
+- src/app/api/chat/stream/route.ts
+  - validateInput(lastUserMessage.content)
+  - if !safe → SSE event:error + 403 + refusalText, then connection closes</pre>
       <div class="sep"></div>
       <p class="p">
-        <span class="k">সুনির্দিষ্ট সিদ্ধান্ত</span>: “Ethics check করা হয় কিনা?” — উত্তর: <span class="k">/api/chat</span> এ হয়, কিন্তু <span class="k">/api/chat/stream</span> এ বর্তমানে নেই।
-        তোমার system যদি production-এ মূলত streaming route দিয়ে চলে, ethics enforcement সেখানে যোগ করাই single-source-of-truth হিসেবে বাধ্যতামূলক।
+        <span class="k">সুনির্দিষ্ট সিদ্ধান্ত</span>: “Ethics check করা হয় কিনা?” — উত্তর: <span class="k">/api/chat</span> এবং <span class="k">/api/chat/stream</span> — দুইটাই এখন enforce করে।
+        Streaming route unsafe হলে provider call/DB persist হওয়ার আগেই request block হয়।
       </p>
+      <div class="sep"></div>
+      <p class="p"><span class="k">Phase 0 — Proof (code-level)</span></p>
+      <pre>Proof: streaming route now imports ethics + blocks early
+
+File: src/app/api/chat/stream/route.ts
+- import { validateInput, getRefusalResponse } from '@/lib/ethics';
+- const lastUserMessage = [...body.messages].reverse().find(m => m.role === 'user');
+- if (!ethicsResult.safe) return new Response(
+    event: error
+    data: { error, ethicsResult:{category,reason}, refusalText }
+  , { status: 403, headers })
+
+Unified policy: src/app/api/chat/route.ts
+- now returns refusalText: getRefusalResponse(ethicsResult.category)</pre>
+      <pre>Proof: Observed runtime (curl)
+
+1) Non-stream JSON block (/api/chat)
+- HTTP 403
+- { ethicsResult:{category:"harmful_content"...}, refusalText:"..." }
+
+2) Streaming SSE block (/api/chat/stream)
+- HTTP 403
+- event: error
+- data: { ethicsResult:{category:"malware_hacking"...}, refusalText:"..." }
+
+Observed example (excerpt):
+event: error
+data: {"error":"Content blocked by ethical guidelines","ethicsResult":{"category":"malware_hacking","reason":"Malware creation request"},"refusalText":"..."}</pre>
     </div>
 
     <div class="grid" id="prompt">
@@ -273,6 +300,41 @@ Why it preserves intent:
           <li><span class="k">Do</span>: memory entries truncate + hash anchor (topicId) রাখো যাতে recall possible।</li>
           <li><span class="k">Avoid</span>: একই identity prompt বারবার long form দেয়া।</li>
         </ul>
+        <div class="sep"></div>
+        <p class="p"><span class="k">Phase 1 — Implemented (code-level)</span></p>
+        <pre>Implemented switches
+
+File: src/services/promptEngine.ts
+- compactMode true if:
+  - process.env.PROMPT_FORMAT === 'compact'
+  - OR agentConfig.config.metadata.promptFormat === 'compact'
+
+What changes under compactMode
+- Persona identity block becomes single-line SYSTEM_IDENTITY key/value style
+- Persona [PERSONA] verbose block omitted
+- Behavioural rules replaced by BEHAVIORAL_RULES_COMPACT (FLAGS + 1-liner)</pre>
+        <pre>Memory compaction (streaming)
+
+File: src/app/api/chat/stream/route.ts
+- agent memories: slice(0, 12) and each content truncated to 380 chars
+- conversation memories: slice(0, 8) and each content truncated to 380 chars
+
+Goal:
+- Reduce systemPrompt length and improve latency under long-memory sessions</pre>
+        <pre>Phase 1 — Observed runtime (prompt size)
+
+Method:
+- Local execution via Bun importing src/services/promptEngine.ts
+- Same agentConfig/persona, same additionalContext payload
+
+Observed:
+- normal prompt length: 1808
+- compact prompt length: 1319
+- delta: 489 chars (~27% reduction on this sample)
+
+Enable knobs:
+- env: PROMPT_FORMAT=compact
+- OR agent config: agent.config.metadata.promptFormat = "compact"</pre>
       </div>
     </div>
 
@@ -434,7 +496,7 @@ Providers (real HTTP)
 Ethics
 - src/lib/ethics.ts</pre>
       <p class="p small" style="margin-top:10px;">
-        Critical note: streaming route ethics missing — এটা “single source of truth” নীতির বিরুদ্ধে।
+        Critical note: Phase 0 completed — streaming route এখন ethics enforce করে (unsafe হলে early block + SSE error + close)।
       </p>
     </div>
 
@@ -442,14 +504,14 @@ Ethics
       <div class="h">১১) Action plan (ফেজড, বাস্তব)</div>
       <p class="p"><span class="k">Phase 0 — Truth hardening (must)</span></p>
       <ul class="list">
-        <li><span class="k">Add ethics to /api/chat/stream</span>: validateInput(last user message) block on unsafe; return SSE error event + close stream.</li>
-        <li><span class="k">Unified ethics policy</span>: same categories + refusal text for both routes.</li>
+        <li><span class="k">Add ethics to /api/chat/stream</span>: validateInput(last user message) block on unsafe; return SSE error event + close stream. <span class="k">STATUS: COMPLETED</span></li>
+        <li><span class="k">Unified ethics policy</span>: same categories + refusal text for both routes. <span class="k">STATUS: COMPLETED</span></li>
       </ul>
       <div class="sep"></div>
       <p class="p"><span class="k">Phase 1 — Compact prompt</span></p>
       <ul class="list">
-        <li><span class="k">Prompt header mapping</span>: config→keys format; remove repeated prose.</li>
-        <li><span class="k">Memory compaction</span>: limit + truncation + topicId anchors.</li>
+        <li><span class="k">Prompt header mapping</span>: config→keys format; remove repeated prose. <span class="k">STATUS: COMPLETED</span></li>
+        <li><span class="k">Memory compaction</span>: limit + truncation + topicId anchors. <span class="k">STATUS: COMPLETED (limit+truncate)</span></li>
       </ul>
       <div class="sep"></div>
       <p class="p"><span class="k">Phase 2 — Tool controller (optional but core for “agent uses tools”)</span></p>

@@ -281,10 +281,12 @@ export class OllamaProvider implements ILLMProvider {
       const reader = response.body.getReader();
       const decoder = new TextDecoder();
       let buffer = '';
+      let stopStreaming = false;
 
       while (true) {
         const { done, value } = await reader.read();
         if (done) break;
+        if (stopStreaming) break;
 
         buffer += decoder.decode(value, { stream: true });
 
@@ -297,27 +299,59 @@ export class OllamaProvider implements ILLMProvider {
           const trimmed = line.trim();
           if (!trimmed) continue;
 
-          try {
-            const data: OllamaChatResponse = JSON.parse(trimmed);
-            const token = data.message?.content ?? '';
-            fullContent += token;
+          let token = '';
 
+          try {
+            const cleaned = trimmed
+              .replace(/^\uFEFF/, '')
+              .replace(/\r$/, '');
+            const jsonStart = cleaned.indexOf('{');
+            const jsonText = jsonStart >= 0 ? cleaned.slice(jsonStart) : cleaned;
+            const data: OllamaChatResponse = JSON.parse(jsonText);
+            token = data.message?.content ?? '';
+            fullContent += token;
+          } catch (err) {
+            // Skip malformed JSON lines
+            const msg = err instanceof Error ? err.message : String(err);
+            log.warn('Failed to parse Ollama streaming line', {
+              error: msg,
+              line: trimmed,
+              prefixHex: Array.from(trimmed.slice(0, 12))
+                .map((c) => c.charCodeAt(0).toString(16).padStart(2, '0'))
+                .join(' '),
+            });
+            continue;
+          }
+
+          try {
             onChunk({
               id: requestId,
               type: 'chunk',
               content: token,
             });
           } catch {
-            // Skip malformed JSON lines
-            log.warn('Failed to parse Ollama streaming line', { line: trimmed });
+            stopStreaming = true;
+            try {
+              await reader.cancel();
+            } catch {
+              // ignore
+            }
+            break;
           }
         }
+
+        if (stopStreaming) break;
       }
 
       // Process any remaining buffer
       if (buffer.trim()) {
         try {
-          const data: OllamaChatResponse = JSON.parse(buffer.trim());
+          const cleaned = buffer.trim()
+            .replace(/^\uFEFF/, '')
+            .replace(/\r$/, '');
+          const jsonStart = cleaned.indexOf('{');
+          const jsonText = jsonStart >= 0 ? cleaned.slice(jsonStart) : cleaned;
+          const data: OllamaChatResponse = JSON.parse(jsonText);
           const token = data.message?.content ?? '';
           fullContent += token;
           if (token) {
@@ -336,7 +370,11 @@ export class OllamaProvider implements ILLMProvider {
         finishReason: 'stop',
       };
 
-      onChunk(finalChunk);
+      try {
+        onChunk(finalChunk);
+      } catch {
+        // ignore if consumer is already closed
+      }
       return finalChunk;
     } catch (err) {
       if (err instanceof ProviderError) throw err;

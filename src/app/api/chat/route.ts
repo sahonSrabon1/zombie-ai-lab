@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { providerGateway } from '@/services/providerGateway';
 import { memoryService } from '@/services/memoryService';
-import { validateInput } from '@/lib/ethics';
+import { getRefusalResponse, validateInput } from '@/lib/ethics';
 import { buildAgentSystemPrompt } from '@/services/promptEngine';
 import { createLogger } from '@/lib/logger';
 import { getIdentityHeader } from '@/lib/identity';
@@ -35,6 +35,7 @@ export async function POST(request: NextRequest) {
               category: ethicsResult.category,
               reason: ethicsResult.reason,
             },
+            refusalText: getRefusalResponse(ethicsResult.category),
             timestamp: new Date().toISOString(),
           },
           { status: 403, headers }

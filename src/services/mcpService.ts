@@ -339,6 +339,8 @@ export class McpService {
     this.executors.set('code_analyze', this.executeCodeAnalyze.bind(this));
     this.executors.set('system_info', this.executeSystemInfo.bind(this));
 
+    this.executors.set('run_terminal', this.executeShellCommand.bind(this));
+
     // Legacy MCP tool names (kept for compatibility with existing DB/tool configs)
     this.executors.set('read_file', this.executeFileRead.bind(this));
     this.executors.set('write_file', this.executeFileWrite.bind(this));
