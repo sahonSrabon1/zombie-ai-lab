@@ -1063,6 +1063,12 @@ const server = Bun.serve<McpWebSocketData>({
       });
     }
 
+    if (url.pathname === "/mcp-audit") {
+      return new Response(getMcpAuditPage(), {
+        headers: { "Content-Type": "text/html" },
+      });
+    }
+
     return new Response("Not Found", { status: 404 });
   },
 
@@ -1765,6 +1771,334 @@ function getTestPage(): string {
       refreshClients();
       loadAgents();
     })();
+  </script>
+</body>
+</html>`;
+}
+
+function getMcpAuditPage(): string {
+  return `<!DOCTYPE html>
+<html lang="bn">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ZombieCoder - Session/Auth/Tool Audit (WS + MCP)</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, Noto Sans, sans-serif;
+      background: radial-gradient(1200px 600px at 20% -10%, rgba(34,197,94,0.18), transparent 60%),
+                  radial-gradient(900px 500px at 90% 0%, rgba(59,130,246,0.18), transparent 55%),
+                  linear-gradient(135deg, #070a12 0%, #111827 100%);
+      color: #e5e7eb;
+      padding: 28px 18px;
+      min-height: 100vh;
+    }
+    .container { max-width: 1100px; margin: 0 auto; }
+    h1 {
+      background: linear-gradient(90deg, #22c55e, #3b82f6);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      margin-bottom: 8px;
+      letter-spacing: -0.02em;
+    }
+    .subtitle { color: #94a3b8; margin-bottom: 18px; line-height: 1.45; }
+    a { color: #93c5fd; text-decoration: none; }
+    a:hover { text-decoration: underline; }
+
+    .grid { display: grid; grid-template-columns: 1.15fr 0.85fr; gap: 14px; }
+    @media (max-width: 980px) { .grid { grid-template-columns: 1fr; } }
+
+    .card {
+      background: rgba(2, 6, 23, 0.55);
+      border: 1px solid rgba(148, 163, 184, 0.18);
+      border-radius: 18px;
+      padding: 18px;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.35);
+      backdrop-filter: blur(10px);
+    }
+
+    .row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+    .row.space { justify-content: space-between; }
+
+    .status {
+      display: inline-block;
+      padding: 6px 14px;
+      border-radius: 20px;
+      font-size: 0.85rem;
+      font-weight: 800;
+    }
+    .status.connected { background: #22c55e; color: white; }
+    .status.disconnected { background: #ef4444; color: white; }
+    .status.connecting { background: #f59e0b; color: white; }
+
+    button {
+      padding: 10px 12px;
+      border-radius: 10px;
+      border: none;
+      cursor: pointer;
+      font-weight: 900;
+      transition: opacity 0.15s;
+      background: linear-gradient(90deg, #22c55e, #16a34a);
+      color: #eafff1;
+    }
+    button:hover { opacity: 0.92; }
+    button:disabled { opacity: 0.5; cursor: not-allowed; }
+    button.secondary {
+      background: rgba(148, 163, 184, 0.15);
+      border: 1px solid rgba(148, 163, 184, 0.22);
+      color: #cbd5e1;
+    }
+
+    code, pre {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+      font-size: 12px;
+    }
+    pre {
+      background: rgba(2,6,23,0.85);
+      border: 1px solid rgba(148, 163, 184, 0.12);
+      border-radius: 12px;
+      padding: 12px;
+      overflow: auto;
+      line-height: 1.35;
+      margin-top: 10px;
+      white-space: pre;
+    }
+    .log {
+      background: rgba(2,6,23,0.85);
+      border: 1px solid rgba(148, 163, 184, 0.12);
+      border-radius: 12px;
+      padding: 12px;
+      height: 420px;
+      overflow: auto;
+      line-height: 1.35;
+    }
+    .log .line { margin-bottom: 8px; padding: 8px; border-radius: 8px; }
+    .log .in { background: rgba(34, 197, 94, 0.08); border-left: 3px solid #22c55e; }
+    .log .out { background: rgba(59, 130, 246, 0.08); border-left: 3px solid #3b82f6; }
+    .log .sys { background: rgba(245, 158, 11, 0.08); border-left: 3px solid #f59e0b; }
+    .ts { color: #64748b; font-size: 11px; }
+    .mini { font-size: 12px; color: #94a3b8; }
+    .kbd { border: 1px solid rgba(148,163,184,0.25); background: rgba(148,163,184,0.10); padding: 2px 6px; border-radius: 8px; font-weight: 900; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Session/Auth/Heartbeat/Tool-Audit — বাস্তব জীবনের ম্যাপ</h1>
+    <p class="subtitle">
+      এই পেইজটা তোমার “স্বরাষ্ট্রমন্ত্রী (Editor) বনাম সার্ভার (Totka Sahon) লাইনে দাঁড়ানো” গল্পটা টেকনিক্যাল স্টেট-মেশিনে নামায়।
+      <br>
+      এখানে দুইটা পাইপ একসাথে চিন্তা করো:
+      <br>
+      <span class="kbd">WS</span> = দীর্ঘস্থায়ী সংযোগ (heartbeat + events + audit) · <span class="kbd">HTTP/SSE MCP</span> = editor-config → capability discover → tools/call
+      <br>
+      Back: <a href="/test">/test</a>
+    </p>
+
+    <div class="grid">
+      <div class="card">
+        <div class="row space" style="margin-bottom: 12px;">
+          <div>
+            <span id="status" class="status disconnected">Disconnected</span>
+            <span class="mini" style="margin-left: 10px;">WS endpoint: <code id="ws-url">-</code></span>
+          </div>
+          <div class="row">
+            <button id="connect" onclick="connect()">Connect WS</button>
+            <button id="disconnect" class="secondary" onclick="disconnect()" disabled>Disconnect</button>
+          </div>
+        </div>
+
+        <div class="row" style="margin-bottom: 10px;">
+          <button id="btn-register" class="secondary" onclick="registerEditor()" disabled>client.register (editor)</button>
+          <button id="btn-heartbeat" class="secondary" onclick="sendPong()" disabled>heartbeat.pong</button>
+          <button id="btn-agent" class="secondary" onclick="selectAgent()" disabled>agent.select (demo)</button>
+        </div>
+
+        <div class="mini">
+          লক্ষ্য: Editor “কথা বলার ইচ্ছা” করলে আগে তাকে <b>সেশন + পরিচয় + অথ</b> লাগবে। WS-এ সেটা live থাকে, HTTP/SSE-এ সেটা request-scoped হলেও <b>sessionId + auth header</b> দিয়ে correlate করা যায়।
+        </div>
+
+        <pre id="flow">(loading flow...)</pre>
+      </div>
+
+      <div class="card">
+        <div class="row space" style="margin-bottom: 10px;">
+          <h3 style="color:#e2e8f0;">Live Audit Log (client-side)</h3>
+          <span class="mini">incoming/outgoing</span>
+        </div>
+        <div id="log" class="log"></div>
+      </div>
+    </div>
+
+    <div class="card" style="margin-top: 14px;">
+      <h3 style="color:#e2e8f0; margin-bottom: 10px;">তোমার কথার exact mapping (practical)</h3>
+      <pre>${String.raw`1) Editor (স্বরাষ্ট্রমন্ত্রী) “লাইনে দাঁড়ায়”
+   - WS: connect → server দেয় (clientId, ephemeral sessionId) → heartbeat শুরু
+   - HTTP/SSE MCP: config এ baseUrl দিলেই editor discover করবে → initialize/tools/list
+
+2) Identity + Auth attach
+   - WS: client.register(kind=editor,name=...) + (future) auth message
+   - HTTP/SSE: Authorization: Bearer <token> বা X-API-Key: ...
+
+3) Session creation (real DB session)
+   - WS world: server calls Next.js /api/sessions → returns real sessionId → all events tagged
+   - HTTP/SSE world: server can also mint/return sessionId during initialize (future enhancement)
+
+4) Heartbeat (ping/pong) = “আমি বেঁচে আছি” proof
+   - WS: ping → pong ACK না এলে server disconnect + audit
+   - SSE: keep-alive comments (':keep-alive') + client reconnect strategy
+
+5) Tool request
+   - MCP: tools/list → tools/call(name,args)
+   - Server must log: who (client), which session, which tool, inputs, duration, result
+
+6) Admin view (Totka Sahon audit)
+   - WS gateway logs + session ledger
+   - MCP endpoint logs + correlation ids (sessionId/requestId)`}</pre>
+      <div class="mini" style="margin-top: 10px;">
+        তোমার “এডিটর ব্যস্ত—মন চাইলে টেস্ট করবে” সমস্যার practical fix হলো: server-side এ <b>observable contract</b> বানাও।
+        মানে: connect হলে server নিজেই state emit করবে (capabilities + requirements), heartbeat enforce করবে, এবং tool-call audit লিখবে।
+        তখন “মন চাইলে/না চাইলে” না—pipeline নিজেই প্রমাণ রেখে চলবে।
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const wsUrl = (() => {
+      const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
+      return proto + '//' + location.host + '/ws';
+    })();
+
+    const logEl = document.getElementById('log');
+    const statusEl = document.getElementById('status');
+    const wsUrlEl = document.getElementById('ws-url');
+    const flowEl = document.getElementById('flow');
+
+    const btnConnect = document.getElementById('connect');
+    const btnDisconnect = document.getElementById('disconnect');
+    const btnRegister = document.getElementById('btn-register');
+    const btnHeartbeat = document.getElementById('btn-heartbeat');
+    const btnAgent = document.getElementById('btn-agent');
+
+    wsUrlEl.textContent = wsUrl;
+
+    let ws = null;
+    let lastSessionId = null;
+    let lastClientId = null;
+
+    function setStatus(kind) {
+      statusEl.className = 'status ' + kind;
+      statusEl.textContent = kind === 'connected' ? 'Connected' : (kind === 'connecting' ? 'Connecting' : 'Disconnected');
+    }
+
+    function ts() {
+      return new Date().toISOString();
+    }
+
+    function appendLog(dir, payload) {
+      const div = document.createElement('div');
+      div.className = 'line ' + (dir === 'in' ? 'in' : (dir === 'out' ? 'out' : 'sys'));
+      const safe = typeof payload === 'string' ? payload : JSON.stringify(payload, null, 2);
+      div.innerHTML = '<div class="ts">' + ts() + '</div><pre style="margin-top:6px; white-space:pre-wrap;">' + safe.replace(/</g,'&lt;') + '</pre>';
+      logEl.appendChild(div);
+      logEl.scrollTop = logEl.scrollHeight;
+    }
+
+    function renderFlow() {
+      flowEl.textContent = [
+        'WS pipeline (observed):',
+        '  1) connect → server emits session.init',
+        '  2) (optional) client.register → server tags client kind/name',
+        '  3) agent.select → server can mint real session via Next.js API',
+        '  4) heartbeat ping/pong keeps pipe alive',
+        '  5) any action → server logs with {clientId, sessionId, agentId}',
+        '',
+        'MCP HTTP/SSE pipeline (conceptual):',
+        '  1) initialize (auth headers attach here)',
+        '  2) tools/list',
+        '  3) tools/call(name,args)',
+        '  4) audit: toolName + args + duration + result (correlate sessionId)',
+        '',
+        'Live vars:',
+        '  clientId: ' + (lastClientId || '-'),
+        '  sessionId: ' + (lastSessionId || '-'),
+      ].join('\n');
+    }
+
+    function enableControls(enabled) {
+      btnDisconnect.disabled = !enabled;
+      btnRegister.disabled = !enabled;
+      btnHeartbeat.disabled = !enabled;
+      btnAgent.disabled = !enabled;
+    }
+
+    window.connect = function connect() {
+      if (ws && ws.readyState === WebSocket.OPEN) return;
+      setStatus('connecting');
+      appendLog('sys', { msg: 'connecting', wsUrl });
+      ws = new WebSocket(wsUrl);
+
+      ws.onopen = () => {
+        setStatus('connected');
+        enableControls(true);
+        btnConnect.disabled = true;
+        appendLog('sys', { msg: 'connected' });
+      };
+
+      ws.onmessage = (ev) => {
+        let data = null;
+        try { data = JSON.parse(ev.data); } catch { data = ev.data; }
+        appendLog('in', data);
+        if (data && typeof data === 'object') {
+          if (data.event === 'session.init' && data.payload) {
+            lastClientId = data.payload.clientId || lastClientId;
+            lastSessionId = data.payload.sessionId || lastSessionId;
+            renderFlow();
+          }
+          if (data.sessionId && typeof data.sessionId === 'string') {
+            lastSessionId = data.sessionId;
+            renderFlow();
+          }
+        }
+      };
+
+      ws.onclose = () => {
+        setStatus('disconnected');
+        enableControls(false);
+        btnConnect.disabled = false;
+        appendLog('sys', { msg: 'disconnected' });
+      };
+
+      ws.onerror = () => {
+        appendLog('sys', { msg: 'ws error' });
+      };
+    }
+
+    window.disconnect = function disconnect() {
+      if (!ws) return;
+      try { ws.close(); } catch {}
+    }
+
+    function send(obj) {
+      if (!ws || ws.readyState !== WebSocket.OPEN) return;
+      appendLog('out', obj);
+      ws.send(JSON.stringify(obj));
+    }
+
+    window.registerEditor = function registerEditor() {
+      send({ type: 'client.register', kind: 'editor', name: 'Windsurf/Cursor (demo)' });
+    }
+
+    window.sendPong = function sendPong() {
+      send({ type: 'heartbeat.pong', timestamp: new Date().toISOString() });
+    }
+
+    window.selectAgent = function selectAgent() {
+      send({ type: 'agent.select', agentId: 'demo-agent' });
+    }
+
+    renderFlow();
+    enableControls(false);
   </script>
 </body>
 </html>`;
