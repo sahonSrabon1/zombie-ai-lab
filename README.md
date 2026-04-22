@@ -1547,3 +1547,4 @@ zombiecoder-hub/
 ---
 
 *This documentation reflects the actual system implementation. No simulated, demo, or placeholder content is included. All descriptions are based on the production codebase.*
+# zombie-ai-lab
