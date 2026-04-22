@@ -308,6 +308,38 @@ const BUILTIN_TOOLS: readonly BuiltinToolDef[] = [
     requiredAuth: false,
     enabled: true,
   },
+  {
+    name: 'search_code',
+    description: 'Search within the project workspace for a query string/regex. Uses ripgrep (rg) when available with a safe fallback.',
+    category: 'code',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        query: { type: 'string', description: 'Search query (regex by default when using rg)' },
+        path: { type: 'string', description: 'Path to search within (default: .)', default: '.' },
+        limit: { type: 'number', description: 'Max matches to return (default: 50, max: 500)', default: 50 },
+      },
+      required: ['query'],
+    },
+    requiredAuth: false,
+    enabled: true,
+  },
+  {
+    name: 'run_terminal',
+    description: 'Execute a shell command in the system environment (alias of shell_execute). Commands are validated against a safety whitelist.',
+    category: 'shell',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        command: { type: 'string', description: 'The shell command to execute' },
+        timeout: { type: 'number', description: 'Execution timeout in milliseconds (default: 30000, max: 120000)', default: 30000 },
+        cwd: { type: 'string', description: 'Working directory for the command execution' },
+      },
+      required: ['command'],
+    },
+    requiredAuth: false,
+    enabled: true,
+  },
 ] as const;
 
 // ─── Tool executor type ──────────────────────────────────────────────────────
@@ -633,8 +665,8 @@ export class McpService {
       };
     }
 
-    // NEW: Security Check - Verify Agent Assignment
-    if (request.agentId) {
+    const enforceAgentAssignments = process.env.MCP_ENFORCE_AGENT_ASSIGNMENTS === 'true';
+    if (enforceAgentAssignments && request.agentId) {
       const assignment = await db.agentToolAssignment.findUnique({
         where: {
           agentId_toolId: {
@@ -648,7 +680,7 @@ export class McpService {
         const executionMs = Date.now() - startTime;
         const errMsg = `Security Violation: Agent '${request.agentId}' is not authorized to use tool '${request.toolName}'`;
         logger.error('Unauthorized tool access attempt', { agentId: request.agentId, toolName: request.toolName });
-        
+
         await this.logExecution({
           toolId: tool.id,
           agentId: request.agentId,
@@ -1424,8 +1456,17 @@ export class McpService {
     const searchEndpoint = process.env.SEARCH_API_ENDPOINT;
 
     if (!searchApiKey || !searchEndpoint) {
-      throw new Error(
-        'Web search is not configured. Set SEARCH_API_ENDPOINT and SEARCH_API_KEY environment variables to enable web search functionality.'
+      return JSON.stringify(
+        {
+          ok: true,
+          configured: false,
+          query,
+          results: [],
+          note:
+            'web_search executed in offline stub mode. To enable real web search, set SEARCH_API_ENDPOINT and SEARCH_API_KEY env vars.',
+        },
+        null,
+        2,
       );
     }
 

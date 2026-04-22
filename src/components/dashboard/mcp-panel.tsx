@@ -34,6 +34,10 @@ import {
   Settings,
 } from "lucide-react";
 
+function cn(...classes: Array<string | false | null | undefined>) {
+  return classes.filter(Boolean).join(" ");
+}
+
 interface ToolItem {
   name: string;
   description?: string;
@@ -94,6 +98,8 @@ export function McpPanel() {
   const [activeCategory, setActiveCategory] = useState<string>("all");
   const [clients, setClients] = useState<Array<{ clientId: string; sessionId: string; connectedForMs: number; lastPingMsAgo: number }>>([]);
   const [clientsLoading, setClientsLoading] = useState(false);
+  const [audit, setAudit] = useState<any | null>(null);
+  const [auditLoading, setAuditLoading] = useState(false);
 
   const fetchAll = useCallback(async () => {
     setLoading(true);
@@ -124,6 +130,25 @@ export function McpPanel() {
     }
   }, []);
 
+  const fetchAudit = useCallback(async () => {
+    setAuditLoading(true);
+    try {
+      const res = await fetch('/api/admin/audit?limit=80&sinceMs=3600000', { cache: 'no-store' });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error((err as any)?.error || 'Audit fetch failed');
+      }
+      const json = await res.json();
+      setAudit(json?.data ?? json);
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : 'Audit fetch failed';
+      toast.error(msg);
+      setAudit(null);
+    } finally {
+      setAuditLoading(false);
+    }
+  }, []);
+
   const fetchClients = useCallback(async () => {
     setClientsLoading(true);
     try {
@@ -148,6 +173,13 @@ export function McpPanel() {
   useEffect(() => {
     fetchAll();
   }, [fetchAll]);
+
+  useEffect(() => {
+    const id = setInterval(() => {
+      void fetchAudit();
+    }, 5000);
+    return () => clearInterval(id);
+  }, [fetchAudit]);
 
   const categories = [
     "all",
@@ -257,6 +289,10 @@ export function McpPanel() {
           <TabsTrigger value="clients" className="rounded-xl px-6 data-[state=active]:bg-blue-600 data-[state=active]:text-white font-black text-xs transition-all" onClick={fetchClients}>
             <Zap className="size-3.5 mr-2" />
             Live Synapse
+          </TabsTrigger>
+          <TabsTrigger value="audit" className="rounded-xl px-6 data-[state=active]:bg-purple-600 data-[state=active]:text-white font-black text-xs transition-all" onClick={fetchAudit}>
+            <AlertCircle className="size-3.5 mr-2" />
+            Proof Audit
           </TabsTrigger>
           <TabsTrigger value="logs" className="rounded-xl px-6 data-[state=active]:bg-amber-600 data-[state=active]:text-white font-black text-xs transition-all">
             <Terminal className="size-3.5 mr-2" />
@@ -443,6 +479,140 @@ export function McpPanel() {
                 </div>
               )}
             </div>
+          </div>
+        </TabsContent>
+
+        <TabsContent value="audit">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <Card className="bg-white/5 border-white/10">
+              <CardHeader>
+                <CardTitle className="text-white/90">Editor Connections</CardTitle>
+                <CardDescription>DB proof: connected editors + bindings</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="flex items-center justify-between mb-3">
+                  <div className="text-xs text-white/50">since: {audit?.since ?? '-'}</div>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={fetchAudit}
+                    className="h-8 px-3 text-[11px] bg-white/5 border-white/10"
+                    disabled={auditLoading}
+                  >
+                    <RefreshCw className={cn("size-3 mr-2", auditLoading && "animate-spin")} />
+                    Refresh
+                  </Button>
+                </div>
+                <ScrollArea className="h-[520px]">
+                  {auditLoading ? (
+                    <div className="space-y-2">
+                      {Array.from({ length: 6 }).map((_, idx) => (
+                        <Skeleton key={idx} className="h-10 w-full bg-white/5" />
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      {(audit?.connections ?? []).map((c: any) => (
+                        <div key={c.id || c.clientId} className="rounded-2xl border border-white/10 bg-white/5 p-4">
+                          <div className="flex items-center justify-between">
+                            <div className="text-xs font-black text-white/80 font-mono truncate">{c.clientId}</div>
+                            <Badge
+                              className={cn(
+                                "border",
+                                c.disconnectedAt
+                                  ? "bg-red-500/15 text-red-300 border-red-500/20"
+                                  : "bg-emerald-500/15 text-emerald-300 border-emerald-500/20",
+                              )}
+                            >
+                              {c.disconnectedAt ? "offline" : "online"}
+                            </Badge>
+                          </div>
+                          <div className="text-[10px] text-white/50 mt-1 font-mono">session: {c.sessionId}</div>
+                          <div className="text-[10px] text-white/50 font-mono">ip: {c.ipAddress || '-'} · ua: {(c.userAgent || '').slice(0, 48)}</div>
+                        </div>
+                      ))}
+                      {(audit?.connections ?? []).length === 0 && (
+                        <div className="text-xs text-white/40">No connections in window.</div>
+                      )}
+                    </div>
+                  )}
+                </ScrollArea>
+              </CardContent>
+            </Card>
+
+            <Card className="bg-white/5 border-white/10">
+              <CardHeader>
+                <CardTitle className="text-white/90">WS Request Logs</CardTitle>
+                <CardDescription>clientId/session/messageType/latency/status</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <ScrollArea className="h-[560px]">
+                  <div className="space-y-2">
+                    {(audit?.wsLogs ?? []).map((l: any) => (
+                      <div key={l.id} className="rounded-2xl border border-white/10 bg-white/5 p-4">
+                        <div className="flex items-center justify-between">
+                          <div className="text-xs font-black text-white/80 font-mono truncate">{l.messageType || 'unknown'}</div>
+                          <Badge
+                            className={cn(
+                              "border",
+                              l.status === 'success'
+                                ? "bg-emerald-500/15 text-emerald-300 border-emerald-500/20"
+                                : "bg-red-500/15 text-red-300 border-red-500/20",
+                            )}
+                          >
+                            {l.status}
+                          </Badge>
+                        </div>
+                        <div className="text-[10px] text-white/50 mt-1 font-mono">client: {l.clientId}</div>
+                        <div className="text-[10px] text-white/50 font-mono">session: {l.editorSessionId || '-'}</div>
+                        <div className="text-[10px] text-white/50 font-mono">latencyMs: {l.latencyMs ?? '-'} · model: {l.model ?? '-'}</div>
+                        {l.errorMessage && <div className="text-[10px] text-red-300 mt-1 font-mono">err: {l.errorMessage}</div>}
+                      </div>
+                    ))}
+                    {(audit?.wsLogs ?? []).length === 0 && (
+                      <div className="text-xs text-white/40">No WS logs in window.</div>
+                    )}
+                  </div>
+                </ScrollArea>
+              </CardContent>
+            </Card>
+
+            <Card className="bg-white/5 border-white/10">
+              <CardHeader>
+                <CardTitle className="text-white/90">Tool Execution Logs</CardTitle>
+                <CardDescription>MCP tool proofs: success/fail + ms</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <ScrollArea className="h-[560px]">
+                  <div className="space-y-2">
+                    {(audit?.toolLogs ?? []).map((t: any) => (
+                      <div key={t.id} className="rounded-2xl border border-white/10 bg-white/5 p-4">
+                        <div className="flex items-center justify-between">
+                          <div className="text-xs font-black text-white/80 font-mono truncate">{t.tool?.name || t.toolId}</div>
+                          <Badge
+                            className={cn(
+                              "border",
+                              t.status === 'success'
+                                ? "bg-emerald-500/15 text-emerald-300 border-emerald-500/20"
+                                : "bg-red-500/15 text-red-300 border-red-500/20",
+                            )}
+                          >
+                            {t.status}
+                          </Badge>
+                        </div>
+                        <div className="text-[10px] text-white/50 mt-1 font-mono">agent: {t.agentId || '-'}</div>
+                        <div className="text-[10px] text-white/50 font-mono">session: {t.sessionId || '-'}</div>
+                        <div className="text-[10px] text-white/50 font-mono">ms: {t.executionMs ?? '-'} · at: {t.createdAt}</div>
+                        {t.errorMessage && <div className="text-[10px] text-red-300 mt-1 font-mono">err: {t.errorMessage}</div>}
+                      </div>
+                    ))}
+                    {(audit?.toolLogs ?? []).length === 0 && (
+                      <div className="text-xs text-white/40">No tool logs in window.</div>
+                    )}
+                  </div>
+                </ScrollArea>
+              </CardContent>
+            </Card>
           </div>
         </TabsContent>
 

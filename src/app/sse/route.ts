@@ -5,10 +5,13 @@ export async function GET(request: NextRequest) {
   const target = new URL('/mcp', url.origin);
   target.search = url.search;
 
+  const authorization = request.headers.get('authorization');
+
   const res = await fetch(target, {
     method: 'GET',
     headers: {
       accept: request.headers.get('accept') ?? 'text/event-stream',
+      ...(authorization ? { authorization } : {}),
     },
   });
 
@@ -23,11 +26,14 @@ export async function POST(request: NextRequest) {
   const target = new URL('/mcp', url.origin);
   target.search = url.search;
 
+  const authorization = request.headers.get('authorization');
+
   const res = await fetch(target, {
     method: 'POST',
     headers: {
       'content-type': request.headers.get('content-type') ?? 'application/json',
       accept: request.headers.get('accept') ?? 'application/json, text/event-stream',
+      ...(authorization ? { authorization } : {}),
     },
     body: await request.text(),
   });

@@ -26,6 +26,9 @@ const HEARTBEAT_TIMEOUT_MS = 60_000; // 60 seconds for ACK
 const HTTP_TIMEOUT_MS = Number(process.env.WS_HTTP_TIMEOUT_MS || 6_000);
 const STREAM_TIMEOUT_MS = Number(process.env.WS_STREAM_TIMEOUT_MS || 5 * 60 * 1000);
 
+const STOCK_SERVER_BEARER_TOKEN =
+  process.env.STOCK_SERVER_BEARER_TOKEN || process.env.MCP_BEARER_TOKEN || process.env.UAS_API_KEY || null;
+
 // ─── Types ───────────────────────────────────────────────────────────────────
 
 interface WebSocketClient {
@@ -174,6 +177,29 @@ async function fetchWithTimeout(url: string, init: RequestInit, timeoutMs: numbe
 function sseFormatMessage(data: unknown, eventName: string = "message"): string {
   const payload = typeof data === "string" ? data : JSON.stringify(data);
   return `event: ${eventName}\ndata: ${payload}\n\n`;
+}
+
+function extractBearerToken(authHeader: string | null): string | null {
+  if (!authHeader) return null;
+  const m = authHeader.match(/^Bearer\s+(.+)$/i);
+  return m?.[1]?.trim() || null;
+}
+
+function getTokenFromRequest(req: Request): string | null {
+  const headerToken = extractBearerToken(req.headers.get("authorization"));
+  if (headerToken) return headerToken;
+  try {
+    const url = new URL(req.url);
+    return url.searchParams.get("token") || url.searchParams.get("access_token") || null;
+  } catch {
+    return null;
+  }
+}
+
+function isRequestAuthorized(req: Request): boolean {
+  if (!STOCK_SERVER_BEARER_TOKEN) return true;
+  const token = getTokenFromRequest(req);
+  return Boolean(token && token === STOCK_SERVER_BEARER_TOKEN);
 }
 
 function createMcpSseStream(req: Request, sessionId: string): Response {
@@ -993,6 +1019,9 @@ const server = Bun.serve<McpWebSocketData>({
     const url = new URL(req.url);
 
     if (url.pathname === "/sse" && req.method === "GET") {
+      if (!isRequestAuthorized(req)) {
+        return new Response("Unauthorized", { status: 401 });
+      }
       const sessionId = url.searchParams.get("sessionId") || crypto.randomUUID();
       return createMcpSseStream(req, sessionId);
     }
@@ -1007,6 +1036,9 @@ const server = Bun.serve<McpWebSocketData>({
 
     // WebSocket upgrade endpoint
     if (url.pathname === "/ws") {
+      if (!isRequestAuthorized(req)) {
+        return new Response("Unauthorized", { status: 401 });
+      }
       const userAgent = req.headers.get("user-agent");
       const ip = (server as any).requestIP?.(req)?.address || req.headers.get("x-forwarded-for") || null;
       const success = server.upgrade(req, {

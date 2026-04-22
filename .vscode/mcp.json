@@ -1,0 +1,9 @@
+{
+	"servers": {
+		"auto-connected_server": {
+			"url": "http://localhost:3000/sse",
+			"type": "http"
+		}
+	},
+	"inputs": []
+}
